@@ -1023,8 +1023,8 @@
     }
   }
 
-  // Initialise on page load once jQuery is ready
-  $(function() {
+  // Initialise on page load once DOM is ready
+  document.addEventListener('DOMContentLoaded', function() {
     toggleDokField();
     toggleUsaFields();
   });

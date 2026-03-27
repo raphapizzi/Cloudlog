@@ -769,17 +769,17 @@ function reset_fields() {
 	$('#qso-last-table').show();
 	$('#partial_view').hide();
 	var $select = $('#wwff_ref').selectize();
-	var selectize = $select[0].selectize;
-	selectize.clear();
-	var $select = $('#pota_ref').selectize();
-	var selectize = $select[0].selectize;
-	selectize.clear();
-	var $select = $('#darc_dok').selectize();
 	var selectize = $select[0] ? $select[0].selectize : null;
 	if (selectize) selectize.clear();
+	$select = $('#pota_ref').selectize();
+	selectize = $select[0] ? $select[0].selectize : null;
+	if (selectize) selectize.clear();
+	$select = $('#darc_dok').selectize();
+	selectize = $select[0] ? $select[0].selectize : null;
+	if (selectize) selectize.clear();
 	$select = $('#stationCntyInput').selectize();
-	selectize = $select[0].selectize;
-	selectize.clear();
+	selectize = $select[0] ? $select[0].selectize : null;
+	if (selectize) selectize.clear();
 
 	mymap.setView(pos, 12);
 	mymap.removeLayer(markers);
@@ -995,11 +995,14 @@ $("#callsign").focusout(function() {
 				/*
 				* Update county with returned value
 				*/
-				if( $('#stationCntyInput').has('option').length == 0 && result.callsign_us_county != "") {
-					var $county_select = $('#stationCntyInput').selectize();
-					var county_selectize = $county_select[0].selectize;
-					county_selectize.addOption({name: result.callsign_us_county});
-					county_selectize.setValue(result.callsign_us_county, false);
+				var $county_elem = $('#stationCntyInput');
+				if( $county_elem.length && $county_elem.has('option').length == 0 && result.callsign_us_county != "") {
+					var $county_select = $county_elem.selectize();
+					var county_selectize = $county_select[0] ? $county_select[0].selectize : null;
+					if (county_selectize) {
+						county_selectize.addOption({name: result.callsign_us_county});
+						county_selectize.setValue(result.callsign_us_county, false);
+					}
 				}
 
 				if(result.timesWorked != "") {
