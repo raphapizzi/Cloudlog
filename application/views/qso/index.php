@@ -909,6 +909,13 @@
                 DXCC Summary
               </button>
             </li>
+            <?php if ($qso_fields['dxcluster_tab']): ?>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="dx-cluster-tab" data-bs-toggle="tab" data-bs-target="#dx-cluster-pane" type="button" role="tab" aria-controls="dx-cluster-pane" aria-selected="false">
+                DX Cluster
+              </button>
+            </li>
+            <?php endif; ?>
           </ul>
         </div>
 
@@ -934,6 +941,52 @@
                 <!-- DXCC Summary content will be loaded here -->
               </div>
             </div>
+
+            <!-- DX Cluster Tab -->
+            <?php if ($qso_fields['dxcluster_tab']): ?>
+            <div class="tab-pane fade" id="dx-cluster-pane" role="tabpanel" aria-labelledby="dx-cluster-tab">
+              <div class="d-flex align-items-center gap-2 flex-wrap pt-2 pb-1 border-bottom mb-1">
+                <span id="qso-cluster-status" class="badge bg-secondary" style="font-size:0.7rem;">Disconnected</span>
+                <select id="qso-cluster-band" class="form-select form-select-sm" style="width:auto;font-size:0.8rem;">
+                  <option value="all">All Bands</option>
+                  <option value="160m">160m</option>
+                  <option value="80m">80m</option>
+                  <option value="60m">60m</option>
+                  <option value="40m">40m</option>
+                  <option value="30m">30m</option>
+                  <option value="20m">20m</option>
+                  <option value="17m">17m</option>
+                  <option value="15m">15m</option>
+                  <option value="12m">12m</option>
+                  <option value="10m">10m</option>
+                  <option value="6m">6m</option>
+                  <option value="4m">4m</option>
+                  <option value="2m">2m</option>
+                  <option value="70cm">70cm</option>
+                  <option value="23cm">23cm</option>
+                  <option value="ghz">GHz+</option>
+                </select>
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" id="qso-cluster-hide-rbn" checked>
+                  <label class="form-check-label" for="qso-cluster-hide-rbn" style="font-size:0.8rem;">Hide RBN</label>
+                </div>
+              </div>
+              <div>
+                <table class="table table-sm table-striped table-hover mb-0" id="qso-cluster-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>DX Call</th>
+                      <th>Freq</th>
+                      <th>Comment</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <small class="text-muted d-block pt-1"><i class="fas fa-mouse-pointer"></i> Click a spot to fill callsign &amp; frequency</small>
+            </div>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -1071,3 +1124,364 @@
     window.location.href = '<?php echo site_url('dxcluster/bandmap'); ?>';
   }
 </script>
+
+<?php if ($qso_fields['dxcluster_tab']): ?>
+<script>
+(function() {
+  'use strict';
+
+  var qsoCluster = {
+    ws: null,
+    spots: new Map(),
+    workedStatus: {},
+    checkWorkedTimeout: null,
+    initialized: false,
+    hideRbn: true,
+    selectedBand: 'all',
+    dataTable: null,
+
+    init: function() {
+      if (this.initialized) return;
+      this.initialized = true;
+
+      // Load saved filter preferences (shared with main DX Cluster page)
+      var savedRbn = localStorage.getItem('cloudlog_hideRbnSpots');
+      if (savedRbn !== null) {
+        this.hideRbn = savedRbn === 'true';
+      }
+      var rbnChk = document.getElementById('qso-cluster-hide-rbn');
+      if (rbnChk) rbnChk.checked = this.hideRbn;
+
+      var savedBand = localStorage.getItem('cloudlog_bandFilter');
+      if (savedBand !== null) {
+        this.selectedBand = savedBand;
+        var bandSel = document.getElementById('qso-cluster-band');
+        if (bandSel) bandSel.value = savedBand;
+      }
+
+      var self = this;
+      var rbnEl = document.getElementById('qso-cluster-hide-rbn');
+      if (rbnEl) {
+        rbnEl.addEventListener('change', function(e) {
+          self.hideRbn = e.target.checked;
+          localStorage.setItem('cloudlog_hideRbnSpots', self.hideRbn.toString());
+          self.renderTable();
+        });
+      }
+
+      var bandEl = document.getElementById('qso-cluster-band');
+      if (bandEl) {
+        bandEl.addEventListener('change', function(e) {
+          self.selectedBand = e.target.value;
+          localStorage.setItem('cloudlog_bandFilter', self.selectedBand);
+          self.renderTable();
+        });
+      }
+
+      // Sync cluster band filter to follow the QSO form's band when a radio is selected
+      this.syncBandFromRadio();
+
+      // Follow band changes on the QSO form (only when a radio is active)
+      $('#band').on('change.qsoCluster', function() {
+        self.syncBandFromRadio();
+      });
+
+      // When radio selection changes, re-sync (switches to All if set to None)
+      $('#radio').on('change.qsoCluster', function() {
+        self.syncBandFromRadio();
+      });
+
+      // CAT sets #band via .val() which doesn't fire the change event,
+      // so poll every second to catch programmatic band updates
+      setInterval(function() {
+        self.syncBandFromRadio();
+      }, 1000);
+
+      // Init DataTable — dom:'t' shows only the table (no search/length/info/pagination chrome)
+      this.dataTable = $('#qso-cluster-table').DataTable({
+        dom: 'tp',
+        paging: true,
+        pageLength: 5,
+        searching: false,
+        info: false,
+        ordering: false,
+        language: { url: getDataTablesLanguageUrl(), paginate: { previous: '&lsaquo;', next: '&rsaquo;' } },
+        columns: [
+          { title: 'Time',    width: '52px'  },
+          { title: 'DX Call'                 },
+          { title: 'Freq',    width: '78px'  },
+          { title: 'Comment'                 },
+          { title: '', visible: false },   // col[4]: raw callsign for click handler
+          { title: '', visible: false },   // col[5]: raw freq MHz for click handler
+          { title: '', visible: false },   // col[6]: raw spotter for RBN detection
+          { title: '', visible: false }    // col[7]: raw comment for mode detection
+        ],
+        createdRow: function(row) {
+          $(row).css('cursor', 'pointer');
+        }
+      });
+
+      // Row click: fill callsign + frequency and trigger lookup
+      $('#qso-cluster-table tbody').on('click', 'tr', function() {
+        var data = self.dataTable.row(this).data();
+        if (!data) return;
+        var dx      = data[4];
+        var freq    = data[5];
+        var spotter = data[6];
+        var comment = data[7];
+        // Reset the form first (same as the reset button)
+        if (typeof reset_fields === 'function') { reset_fields(); }
+        // Set frequency and band
+        $('#frequency').val(freq);
+        if (typeof frequencyToBand === 'function') {
+          $('#band').val(frequencyToBand(freq));
+        }
+        // If the spot is from the RBN and comments indicate CW, set mode accordingly
+        // Don't trigger('change') — that would call band_to_freq and overwrite the spot frequency
+        if (self.isRbn(spotter) && /\bCW\b/i.test(comment)) {
+          $('#mode').val('CW');
+        }
+        // Set callsign and trigger lookup
+        $('#callsign').val(dx);
+        $('#callsign').focusout();
+        $('#callsign').blur();
+      });
+
+      this.connect();
+    },
+
+    connect: function() {
+      this.setStatus('Connecting...', 'warning');
+      var self = this;
+      this.ws = new WebSocket('wss://dxc.cloudlog.org');
+
+      this.ws.onopen = function() {
+        self.setStatus('Connected', 'success');
+      };
+
+      this.ws.onmessage = function(event) {
+        try {
+          var data = JSON.parse(event.data);
+          if (data.type === 'spot') {
+            self.addSpot(data);
+          }
+        } catch(e) {}
+      };
+
+      this.ws.onclose = function() {
+        self.setStatus('Reconnecting...', 'secondary');
+        setTimeout(function() { self.connect(); }, 5000);
+      };
+
+      this.ws.onerror = function() {
+        self.setStatus('Error', 'danger');
+      };
+    },
+
+    setStatus: function(text, type) {
+      var el = document.getElementById('qso-cluster-status');
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'badge bg-' + type + (type === 'warning' ? ' text-dark' : '');
+    },
+
+    addSpot: function(spot) {
+      // Deduplicate by dx+frequency key; newer spot overwrites
+      var key = spot.dx + '|' + spot.frequency;
+      spot.receivedAt = Date.now();
+      this.spots.set(key, spot);
+
+      // Prune to newest 100
+      if (this.spots.size > 100) {
+        var entries = Array.from(this.spots.entries());
+        entries.sort(function(a, b) { return a[1].receivedAt - b[1].receivedAt; });
+        this.spots.delete(entries[0][0]);
+      }
+
+      this.renderTable();
+
+      clearTimeout(this.checkWorkedTimeout);
+      var self = this;
+      this.checkWorkedTimeout = setTimeout(function() { self.checkWorkedStatus(); }, 500);
+    },
+
+    isRbn: function(spotter) {
+      return spotter && /\-[#\d]+$/.test(spotter.toString().trim().toUpperCase());
+    },
+
+    getBand: function(freqKhz) {
+      var f = parseFloat(freqKhz);
+      if (f >= 1800 && f <= 2000) return '160m';
+      if (f >= 3500 && f <= 4000) return '80m';
+      if (f >= 5250 && f <= 5450) return '60m';
+      if (f >= 7000 && f <= 7300) return '40m';
+      if (f >= 10100 && f <= 10150) return '30m';
+      if (f >= 14000 && f <= 14350) return '20m';
+      if (f >= 18068 && f <= 18168) return '17m';
+      if (f >= 21000 && f <= 21450) return '15m';
+      if (f >= 24890 && f <= 24990) return '12m';
+      if (f >= 28000 && f <= 29700) return '10m';
+      if (f >= 50000 && f <= 54000) return '6m';
+      if (f >= 70000 && f <= 71000) return '4m';
+      if (f >= 144000 && f <= 148000) return '2m';
+      if (f >= 420000 && f <= 450000) return '70cm';
+      if (f >= 1240000 && f <= 1300000) return '23cm';
+      if (f >= 2300000) return 'ghz';
+      return 'unknown';
+    },
+
+    formatTime: function(t) {
+      if (!t || t === '0' || t === 'null' || t === 'undefined') return '';
+      var s = t.toString().trim();
+      return s.endsWith('Z') ? s : s + 'Z';
+    },
+
+    calcAge: function(receivedAt) {
+      var mins = Math.floor((Date.now() - receivedAt) / 60000);
+      if (mins < 1) return 'now';
+      if (mins < 60) return mins + 'm';
+      return Math.floor(mins / 60) + 'h';
+    },
+
+    syncBandFromRadio: function() {
+      var radioVal = $('#radio').val();
+      if (!radioVal || radioVal === '0') {
+        this.setBandFilter('all');
+        return;
+      }
+      var band = $('#band').val();
+      if (band) { this.setBandFilter(band); }
+    },
+
+    setBandFilter: function(band) {
+      if (band === this.selectedBand) return;
+      this.selectedBand = band;
+      var sel = document.getElementById('qso-cluster-band');
+      if (sel) sel.value = band;
+      localStorage.setItem('cloudlog_bandFilter', band);
+      this.renderTable();
+    },
+
+    escHtml: function(s) {
+      if (!s) return '';
+      return s.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    },
+
+    renderTable: function() {
+      if (!this.dataTable) return;
+
+      var self = this;
+      var sorted = Array.from(this.spots.values())
+        .filter(function(s) {
+          if (self.hideRbn && self.isRbn(s.spotter)) return false;
+          if (self.selectedBand !== 'all' && self.getBand(s.frequency) !== self.selectedBand) return false;
+          return true;
+        })
+        .sort(function(a, b) { return b.receivedAt - a.receivedAt; })
+        .slice(0, 50);
+
+      this.dataTable.clear();
+
+      sorted.forEach(function(spot) {
+        var status      = self.workedStatus[spot.dx];
+        var freqHz      = Math.round(parseFloat(spot.frequency) * 1000); // kHz → Hz
+        var freqDisplay = (freqHz / 1000000).toFixed(3);                 // Hz → MHz for display
+        var comment     = self.escHtml((spot.comment || '').substring(0, 35));
+        var time        = self.formatTime(spot.time);
+
+        var workedIcon = '';
+        var newBadge   = '';
+        if (status) {
+          if (status.worked_on_band) {
+            workedIcon = '<i class="fas fa-check text-success ms-1" title="Worked on band"></i>';
+          } else if (status.worked_overall) {
+            workedIcon = '<i class="fas fa-check text-info ms-1" title="Worked another band"></i>';
+          } else {
+            workedIcon = '<i class="fas fa-times text-danger ms-1" title="Not worked"></i>';
+          }
+          if (status.dxcc && !status.dxcc_worked_overall) {
+            // Never worked this DXCC entity on any band
+            newBadge = ' <span class="badge bg-danger" style="font-size:0.6rem;">New DXCC</span>';
+          } else if (status.dxcc && !status.dxcc_worked_on_band) {
+            // Worked on another band but not this one
+            newBadge = ' <span class="badge bg-warning text-dark" style="font-size:0.6rem;">New Band</span>';
+          }
+        }
+
+        self.dataTable.row.add([
+          '<span class="text-muted">' + time + '</span>',
+          '<strong>' + self.escHtml(spot.dx) + '</strong>' + workedIcon + newBadge,
+          '<span style="font-family:monospace;font-weight:600;color:#0d6efd;">' + freqDisplay + '</span>',
+          '<span class="text-muted">' + comment + '</span>',
+          spot.dx,              // hidden col[4]: raw callsign
+          freqHz,               // hidden col[5]: freq in Hz (Cloudlog standard)
+          spot.spotter || '',   // hidden col[6]: raw spotter
+          spot.comment || ''    // hidden col[7]: raw comment
+        ]);
+      });
+
+      this.dataTable.draw();
+    },
+
+    checkWorkedStatus: async function() {
+      var toCheck = [];
+      var seen = new Set();
+
+      for (var spot of this.spots.values()) {
+        if (this.hideRbn && this.isRbn(spot.spotter)) continue;
+        if (this.selectedBand !== 'all' && this.getBand(spot.frequency) !== this.selectedBand) continue;
+        if (this.workedStatus[spot.dx]) continue;
+        if (seen.has(spot.dx)) continue;
+        seen.add(spot.dx);
+        toCheck.push({ callsign: spot.dx, band: this.getBand(spot.frequency) });
+        if (toCheck.length >= 30) break;
+      }
+
+      if (!toCheck.length) return;
+
+      var self = this;
+      try {
+        var resp = await fetch('<?php echo site_url('dxcluster/check_worked'); ?>', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callsigns: toCheck })
+        });
+        var data = await resp.json();
+        if (data.success) {
+          Object.assign(self.workedStatus, data.results);
+          self.renderTable();
+        }
+      } catch(e) {}
+    }
+  };
+
+  // Lazy init: only connect when the DX Cluster tab is first clicked
+  document.addEventListener('DOMContentLoaded', function() {
+    var tab = document.getElementById('dx-cluster-tab');
+    if (!tab) return;
+
+    tab.addEventListener('shown.bs.tab', function() {
+      if (!qsoCluster.initialized) {
+        qsoCluster.init();
+      } else {
+        // Re-sync band filter and fix column widths each time the tab becomes visible
+        qsoCluster.syncBandFromRadio();
+        if (qsoCluster.dataTable) { qsoCluster.dataTable.columns.adjust(); }
+      }
+    });
+
+    // Update spot ages every minute while active
+    setInterval(function() {
+      if (qsoCluster.initialized && qsoCluster.spots.size > 0) {
+        qsoCluster.renderTable();
+      }
+    }, 60000);
+  });
+
+}());
+</script>
+<?php endif; ?>

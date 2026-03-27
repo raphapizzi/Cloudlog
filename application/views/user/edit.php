@@ -1295,6 +1295,7 @@
 							'general_tab' => true, 'iota' => true, 'sota' => true, 'wwff' => true, 'pota' => true,
 							'sig' => true, 'dok' => true, 'usa_state' => true,
 							'satellite_tab' => true, 'notes_tab' => true, 'qsl_tab' => true,
+							'dxcluster_tab' => true,
 						], $qso_fields);
 						?>
 						<div class="row">
@@ -1415,6 +1416,10 @@
 										<div class="form-check form-switch">
 											<input name="qso_field_qsl_tab" class="form-check-input" type="checkbox" role="switch" id="qsoFieldQslTab" <?php if ($qso_fields['qsl_tab']) echo 'checked'; ?>>
 											<label class="form-check-label" for="qsoFieldQslTab">QSL Tab</label>
+										</div>
+										<div class="form-check form-switch">
+											<input name="qso_field_dxcluster_tab" class="form-check-input" type="checkbox" role="switch" id="qsoFieldDxClusterTab" <?php if ($qso_fields['dxcluster_tab']) echo 'checked'; ?>>
+											<label class="form-check-label" for="qsoFieldDxClusterTab">DX Cluster Tab</label>
 										</div>
 									</div>
 								</div>

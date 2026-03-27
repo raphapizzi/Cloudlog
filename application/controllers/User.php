@@ -758,6 +758,7 @@ class User extends CI_Controller
 				'general_tab' => true, 'iota' => true, 'sota' => true, 'wwff' => true, 'pota' => true,
 				'sig' => true, 'dok' => true, 'usa_state' => true,
 				'satellite_tab' => true, 'notes_tab' => true, 'qsl_tab' => true,
+				'dxcluster_tab' => true,
 			];
 			$qso_form_opts = $this->user_options_model->get_options('qso_form')->result();
 			foreach ($qso_form_opts as $qfo_item) {
@@ -937,7 +938,7 @@ class User extends CI_Controller
 						$qso_field_keys = ['rst', 'name', 'qth', 'locator', 'comment',
 							'station_tab', 'freq_tx', 'freq_rx', 'band_rx', 'transmit_power', 'operator_callsign',
 							'general_tab', 'iota', 'sota', 'wwff', 'pota', 'sig', 'dok', 'usa_state',
-							'satellite_tab', 'notes_tab', 'qsl_tab'];
+							'satellite_tab', 'notes_tab', 'qsl_tab', 'dxcluster_tab'];
 						foreach ($qso_field_keys as $qso_key) {
 							$this->user_options_model->set_option('qso_form', $qso_key,
 								['visible' => isset($_POST['qso_field_' . $qso_key]) ? 'true' : 'false']);

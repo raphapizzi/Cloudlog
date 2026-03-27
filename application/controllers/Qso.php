@@ -74,6 +74,7 @@ class QSO extends CI_Controller {
 			'general_tab' => true, 'iota' => true, 'sota' => true, 'wwff' => true, 'pota' => true,
 			'sig' => true, 'dok' => true, 'usa_state' => true,
 			'satellite_tab' => true, 'notes_tab' => true, 'qsl_tab' => true,
+			'dxcluster_tab' => true,
 		];
 		$qso_form_options = $this->user_options_model->get_options('qso_form')->result();
 		foreach ($qso_form_options as $qfo_item) {
