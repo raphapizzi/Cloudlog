@@ -11,6 +11,12 @@
             <div class="card">
                 <div class="card-body">
                     <form id="qso_input" name="qsos">
+                        <div class="d-flex justify-content-end mb-1">
+                            <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none" data-bs-toggle="collapse" data-bs-target="#contest-settings-panel" title="Toggle session settings">
+                                <i class="fas fa-sliders-h me-1"></i><small>Session Settings <i class="fas fa-chevron-down fa-xs" id="settings-chevron"></i></small>
+                            </button>
+                        </div>
+                        <div id="contest-settings-panel" class="collapse show">
                         <div class="mb-3 row">
 							<label class="col-auto control-label" for="radio"><?php echo lang('contesting_exchange_type'); ?></label>
 
@@ -103,93 +109,97 @@
                             </div>
                         </div>
 
+                        </div><!-- /contest-settings-panel -->
+
                         <div id="radio_status"></div>
 
-                        <div class="row">
-                            <div class="mb-3 col-md-3">
-                                <label for="callsign"><?php echo lang('gen_hamradio_callsign'); ?></label>
-                                <input type="text" class="form-control form-control-sm" id="callsign" name="callsign" required pattern="\S+" title="Whitespace is not allowed">
+                        <div class="row align-items-end">
+                            <div class="mb-3 col-md-4">
+                                <label for="callsign"><strong><?php echo lang('gen_hamradio_callsign'); ?></strong></label>
+                                <input type="text" class="form-control" id="callsign" name="callsign" required pattern="\S+" title="Whitespace is not allowed" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
                                 <small id="callsign_info" class="badge text-bg-danger"></small>
                                 <small id="locator_info_contest_dxcc" class="badge text-bg-info ms-1" style="display:none"></small>
                                 <small id="distance_contest_dxcc" class="badge text-bg-secondary ms-1" style="display:none"></small>
                             </div>
 
                             <div class="mb-3 col-md-1">
-                                <label for="rst_sent"><?php echo lang('gen_hamradio_rsts'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="rst_sent" id="rst_sent" value="59">
+                                <label for="rst_sent" class="text-muted small"><?php echo lang('gen_hamradio_rsts'); ?></label>
+                                <input type="text" class="form-control text-center text-muted" name="rst_sent" id="rst_sent" value="59">
                             </div>
 
                             <div style="display:none" class="mb-3 col-md-1 serials">
 								<label for="exch_serial_s"><?php echo lang('contesting_exchange_serial_s'); ?></label>
-                                <input type="number" class="form-control form-control-sm" name="exch_serial_s" id="exch_serial_s" value="">
+                                <input type="number" class="form-control" name="exch_serial_s" id="exch_serial_s" value="">
 							</div>
 
                             <div style="display:none" class="mb-3 col-md-1 exchanges">
                                 <label for="exch_sent"><?php echo lang('gen_hamradio_exchange_sent_short'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="exch_sent" id="exch_sent" value="">
+                                <input type="text" class="form-control" name="exch_sent" id="exch_sent" value="">
                             </div>
 
 							<div style="display:none" class="mb-3 col-md-2 gridsquares">
 								<label for="exch_gridsquare_s"><?php echo lang('contesting_exchange_gridsquare_s'); ?></label>
-                                <input disabled type="text" class="form-control form-control-sm" name="exch_gridsquare_s" id="exch_gridsquare_s" value="<?php echo $my_gridsquare;?>">
+                                <input disabled type="text" class="form-control" name="exch_gridsquare_s" id="exch_gridsquare_s" value="<?php echo $my_gridsquare;?>">
 							</div>
 
                             <div class="mb-3 col-md-1">
-                                <label for="rst_rcvd"><?php echo lang('gen_hamradio_rstr'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="rst_rcvd" id="rst_rcvd" value="59">
+                                <label for="rst_rcvd" class="text-muted small"><?php echo lang('gen_hamradio_rstr'); ?></label>
+                                <input type="text" class="form-control text-center text-muted" name="rst_rcvd" id="rst_rcvd" value="59">
                             </div>
 
                             <div style="display:none" class="mb-3 col-md-1 serialr">
 								<label for="exch_serial_r"><?php echo lang('contesting_exchange_serial_r'); ?></label>
-                                <input type="number" class="form-control form-control-sm" name="exch_serial_r" id="exch_serial_r" value="">
+                                <input type="number" class="form-control" name="exch_serial_r" id="exch_serial_r" value="">
 							</div>
 
 							<div style="display:none" class="mb-3 col-md-1 exchanger">
 								<label for="exch_rcvd"><?php echo lang('gen_hamradio_exchange_rcvd_short'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="exch_rcvd" id="exch_rcvd" value="">
+                                <input type="text" class="form-control" name="exch_rcvd" id="exch_rcvd" value="">
 							</div>
 
 							<div style="display:none" class="mb-3 col-md-2 gridsquarer">
 								<label for="exch_gridsquare_r"><?php echo lang('contesting_exchange_gridsquare_r'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="locator" id="exch_gridsquare_r" value="" maxlength="8">
+                                <input type="text" class="form-control" name="locator" id="exch_gridsquare_r" value="" maxlength="8">
 								<small id="locator_info_contest" class="badge text-bg-info"></small>
 							</div>
 
 							<div style="display:none" class="mb-3 col-md-1 gridsquarer">
 								<label for="distance_contest"><?php echo lang('gen_hamradio_distance'); ?></label>
-								<input type="text" class="form-control form-control-sm" id="distance_contest" value="" disabled>
+							<input type="text" class="form-control" id="distance_contest" value="" disabled>
 							</div>
                         </div>
 
-                        <div class="row">
-                            <div class="mb-3 col-md-5">
-                                <label for="name"><?php echo lang('general_word_name'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="name" id="name" value="">
-                            </div>
-
-                            <div class="mb-3 col-md-5">
-                                <label for="comment"><?php echo lang('general_word_comment'); ?></label>
-                                <input type="text" class="form-control form-control-sm" name="comment" id="comment" value="">
+                        <div class="d-flex align-items-center gap-2 mt-1 mb-2">
+                            <button type="button" class="btn btn-lg btn-outline-secondary" id="reset_qso" onclick="reset_log_fields()"><i class="fas fa-sync-alt"></i> <?php echo lang('contesting_btn_reset_qso'); ?></button>
+                            <button type="button" class="btn btn-success btn-lg px-4" id="save_qso" onclick="logQso();"><i class="fas fa-save"></i> <?php echo lang('contesting_btn_save_qso'); ?></button>
+                            <button type="button" class="btn btn-link btn-sm text-muted p-0 text-decoration-none ms-1" data-bs-toggle="collapse" data-bs-target="#extra-fields" title="Name, comment and copy exchange">
+                                <i class="fas fa-ellipsis-h me-1"></i><small>Extra fields <i class="fas fa-chevron-right fa-xs" id="extra-chevron"></i></small>
+                            </button>
+                        </div>
+                        <div id="extra-fields" class="collapse">
+                            <div class="row mt-1">
+                                <div class="mb-2 col-md-4">
+                                    <label for="name" class="form-label form-label-sm"><?php echo lang('general_word_name'); ?></label>
+                                    <input type="text" class="form-control form-control-sm" name="name" id="name" value="">
+                                </div>
+                                <div class="mb-2 col-md-4">
+                                    <label for="comment" class="form-label form-label-sm"><?php echo lang('general_word_comment'); ?></label>
+                                    <input type="text" class="form-control form-control-sm" name="comment" id="comment" value="">
+                                </div>
+                                <div class="mb-2 col-md-4">
+                                    <label class="form-label form-label-sm">Copy exchange to</label>
+                                    <select class="form-select form-select-sm" id="copyexchangeto" name="copyexchangeto">
+                                        <option value='None'><?php echo lang('contesting_copy_exch_to_none'); ?></option>
+                                        <option value='dok'><?php echo lang('contesting_copy_exch_to_dok'); ?></option>
+                                        <option value='name'><?php echo lang('contesting_copy_exch_to_name'); ?></option>
+                                        <option value='age'><?php echo lang('contesting_copy_exch_to_age'); ?></option>
+                                        <option value='state'><?php echo lang('contesting_copy_exch_to_state'); ?></option>
+                                        <option value='power'><?php echo lang('contesting_copy_exch_to_power'); ?></option>
+                                        <option value='locator'><?php echo lang('contesting_copy_exch_to_locator'); ?></option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-
-                        <button type="button" class="btn btn-sm btn-secondary" id="reset_qso" onclick="reset_log_fields()"><i class="fas fa-sync-alt"></i> <?php echo lang('contesting_btn_reset_qso'); ?></button>
-                        <button type="button" class="btn btn-sm btn-primary" id="save_qso" onclick="logQso();"><i class="fas fa-save"></i> <?php echo lang('contesting_btn_save_qso'); ?></button>
-                        <div class="mb-3 row">
-                          <div class="col-md-12">
-                              <div class="form-check-inline">
-                                  <select class="form-select form-select-sm" id="copyexchangeto" name="copyexchangeto">
-                                      <option value='None'><?php echo lang('contesting_copy_exch_to_none'); ?></option>
-                                      <option value='dok'><?php echo lang('contesting_copy_exch_to_dok'); ?></option>
-                                      <option value='name'><?php echo lang('contesting_copy_exch_to_name'); ?></option>
-                                      <option value='age'><?php echo lang('contesting_copy_exch_to_age'); ?></option>
-                                      <option value='state'><?php echo lang('contesting_copy_exch_to_state'); ?></option>
-                                      <option value='power'><?php echo lang('contesting_copy_exch_to_power'); ?></option>
-                                      <option value='locator'><?php echo lang('contesting_copy_exch_to_locator'); ?></option>
-                                  </select>
-                              </div>
-                          </div>
-                      </div>
                     </form>
                 </div>
             </div>
@@ -232,10 +242,14 @@
 
             <!-- Past QSO Box -->
             <div class="card log">
-                <div class="card-header"><h5 class="card-title"><?php echo lang('contesting_title_contest_logbook'); ?></h5></div>
-                <p>
-
-                <table style="width:100%" class="table-sm table qsotable table-bordered table-hover table-striped table-condensed text-center">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0"><?php echo lang('contesting_title_contest_logbook'); ?></h5>
+                    <div class="d-flex align-items-center gap-1">
+                        <label for="logbook-search" class="text-muted small mb-0 me-1">Search:</label>
+                        <input type="search" id="logbook-search" class="form-control form-control-sm" style="width:180px" placeholder="">
+                    </div>
+                </div>
+                <table style="width:100%" class="table-sm table qsotable table-bordered table-hover table-striped table-condensed text-center mb-0">
                     <thead>
                         <tr class="log_title titles">
                             <th><?php echo lang('general_word_date'); ?>/<?php echo lang('general_word_time'); ?></th>
@@ -262,6 +276,20 @@
 </div>
 
 <script>
+    // Chevron icons for collapsibles
+    document.getElementById('contest-settings-panel').addEventListener('hide.bs.collapse', function () {
+        document.getElementById('settings-chevron').classList.replace('fa-chevron-down', 'fa-chevron-right');
+    });
+    document.getElementById('contest-settings-panel').addEventListener('show.bs.collapse', function () {
+        document.getElementById('settings-chevron').classList.replace('fa-chevron-right', 'fa-chevron-down');
+    });
+    document.getElementById('extra-fields').addEventListener('show.bs.collapse', function () {
+        document.getElementById('extra-chevron').classList.replace('fa-chevron-right', 'fa-chevron-down');
+    });
+    document.getElementById('extra-fields').addEventListener('hide.bs.collapse', function () {
+        document.getElementById('extra-chevron').classList.replace('fa-chevron-down', 'fa-chevron-right');
+    });
+
     function openBandmap() {
         // Open bandmap in a new window without URL bar, toolbars, etc.
         const width = 500; 

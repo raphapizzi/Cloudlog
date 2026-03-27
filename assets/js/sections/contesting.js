@@ -778,8 +778,6 @@ function logQso() {
 				// Re-fetch session so table shows all QSOs from session start, not just last minute
 				sessiondata = await getSession();
 				await refresh_qso_table(sessiondata);
-				var qTable = $('.qsotable').DataTable();
-				qTable.search('').order([0, 'desc']).draw();
 
 			}
 		});
@@ -828,6 +826,10 @@ async function refresh_qso_table(data) {
 			type: 'post',
 			data: { 'qso': data.qso, },
 			success: function (html) {
+				// Destroy DataTables FIRST so DOM manipulation is clean
+				if ($.fn.DataTable.isDataTable('.qsotable')) {
+					$('.qsotable').DataTable().destroy();
+				}
 				var mode = '';
 				$(".contest_qso_table_contents").empty();
 				var dupeCounts = {};
@@ -857,36 +859,38 @@ async function refresh_qso_table(data) {
 						'<td>' + this.col_vucc_grids + '</td>' +
 						'</tr>');
 				});
-				if (!$.fn.DataTable.isDataTable('.qsotable')) {
-					$.fn.dataTable.moment('DD-MM-YYYY HH:mm:ss');
-					$('.qsotable').DataTable({
-						"stateSave": true,
-						"pageLength": 25,
-						responsive: false,
-						"scrollY": "400px",
-						"scrollCollapse": true,
-						"paging": false,
-						"scrollX": true,
-						"language": {
-							url: getDataTablesLanguageUrl(),
-						},
-						order: [0, 'desc'],
-						"columnDefs": [
-							{
-								"render": function (data, type, row) {
-									return pad(row[8], 3);
-								},
-								"targets": 8
+				$.fn.dataTable.moment('DD-MM-YYYY HH:mm:ss');
+				$('.qsotable').DataTable({
+					"pageLength": 25,
+					responsive: false,
+					"scrollY": "400px",
+					"scrollCollapse": true,
+					"paging": false,
+					"scrollX": true,
+					"dom": 'rt<"bottom"i>',
+					"language": {
+						url: getDataTablesLanguageUrl(),
+					},
+					"search": { "search": $('#logbook-search').val() },
+					order: [0, 'desc'],
+					"columnDefs": [
+						{
+							"render": function (data, type, row) {
+								return pad(row[8], 3);
 							},
-							{
-								"render": function (data, type, row) {
-									return pad(row[9], 3);
-								},
-								"targets": 9
-							}
-						]
-					});
-				}
+							"targets": 8
+						},
+						{
+							"render": function (data, type, row) {
+								return pad(row[9], 3);
+							},
+							"targets": 9
+						}
+					]
+				});
+				$('#logbook-search').off('keyup.logbook').on('keyup.logbook', function () {
+					$('.qsotable').DataTable().search(this.value).draw();
+				});
 				updateContestStats(html);
 				updateTableColumns($('#exchangetype').val());
 			}
@@ -900,6 +904,10 @@ async function refresh_qso_table(data) {
 			type: 'post',
 			data: { 'contest_id': selected_contest_id },
 			success: function (html) {
+				// Destroy DataTables FIRST so DOM manipulation is clean
+				if ($.fn.DataTable.isDataTable('.qsotable')) {
+					$('.qsotable').DataTable().destroy();
+				}
 				var mode = '';
 				$(".contest_qso_table_contents").empty();
 				var dupeCounts = {};
@@ -929,36 +937,38 @@ async function refresh_qso_table(data) {
 						'<td>' + this.col_vucc_grids + '</td>' +
 						'</tr>');
 				});
-				if (!$.fn.DataTable.isDataTable('.qsotable')) {
-					$.fn.dataTable.moment('DD-MM-YYYY HH:mm:ss');
-					$('.qsotable').DataTable({
-						"stateSave": true,
-						"pageLength": 25,
-						responsive: false,
-						"scrollY": "400px",
-						"scrollCollapse": true,
-						"paging": false,
-						"scrollX": true,
-						"language": {
-							url: getDataTablesLanguageUrl(),
-						},
-						order: [0, 'desc'],
-						"columnDefs": [
-							{
-								"render": function (data, type, row) {
-									return pad(row[8], 3);
-								},
-								"targets": 8
+				$.fn.dataTable.moment('DD-MM-YYYY HH:mm:ss');
+				$('.qsotable').DataTable({
+					"pageLength": 25,
+					responsive: false,
+					"scrollY": "400px",
+					"scrollCollapse": true,
+					"paging": false,
+					"scrollX": true,
+					"dom": 'rt<"bottom"i>',
+					"language": {
+						url: getDataTablesLanguageUrl(),
+					},
+					"search": { "search": $('#logbook-search').val() },
+					order: [0, 'desc'],
+					"columnDefs": [
+						{
+							"render": function (data, type, row) {
+								return pad(row[8], 3);
 							},
-							{
-								"render": function (data, type, row) {
-									return pad(row[9], 3);
-								},
-								"targets": 9
-							}
-						]
-					});
-				}
+							"targets": 8
+						},
+						{
+							"render": function (data, type, row) {
+								return pad(row[9], 3);
+							},
+							"targets": 9
+						}
+					]
+				});
+				$('#logbook-search').off('keyup.logbook').on('keyup.logbook', function () {
+					$('.qsotable').DataTable().search(this.value).draw();
+				});
 				updateContestStats(html);
 				updateTableColumns($('#exchangetype').val());
 			}
