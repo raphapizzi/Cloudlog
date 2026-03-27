@@ -1328,7 +1328,8 @@
     },
 
     isRbn: function(spotter) {
-      return spotter && /\-[#\d]+$/.test(spotter.toString().trim().toUpperCase());
+      // RBN skimmers always end with -# (literal hash), not just any numeric SSID
+      return spotter && /\-#+$/.test(spotter.toString().trim());
     },
 
     getBand: function(freqKhz) {
@@ -1396,6 +1397,9 @@
 
     renderTable: function() {
       if (!this.dataTable) return;
+      // Skip the DOM redraw if the tab pane is not currently visible
+      var pane = document.getElementById('dx-cluster-pane');
+      if (pane && !pane.classList.contains('active')) return;
 
       var self = this;
       var sorted = Array.from(this.spots.values())
@@ -1491,7 +1495,9 @@
       if (!qsoCluster.initialized) {
         qsoCluster.init();
       } else {
-        // Re-sync band filter and fix column widths each time the tab becomes visible
+        // Re-render with any spots that arrived while the tab was hidden,
+        // then re-sync band filter and fix column widths
+        qsoCluster.renderTable();
         qsoCluster.syncBandFromRadio();
         if (qsoCluster.dataTable) { qsoCluster.dataTable.columns.adjust(); }
       }
