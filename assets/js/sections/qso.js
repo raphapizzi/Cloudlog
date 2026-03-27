@@ -929,7 +929,7 @@ $("#callsign").focusout(function() {
 					dok_selectize.clear();
 				}
 
-	$('#dxcc_id').val(result.dxcc.adif).trigger('change');
+				$('#dxcc_id').val(result.dxcc.adif).trigger('change');
 				$('#cqz').val(result.dxcc.cqz);
 				$('#ituz').val(result.dxcc.ituz);
 
