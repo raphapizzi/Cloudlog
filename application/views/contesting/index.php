@@ -197,7 +197,7 @@
             <br/>
 
             <!-- Callsign SCP Box -->
-            <div class="card callsign-suggest">
+            <div class="card callsign-suggest" style="display:none">
                 <div class="card-header"><h5 class="card-title"><?php echo lang('contesting_title_callsign_suggestions'); ?></h5></div>
 
                 <div class="card-body callsign-suggestions"></div>
@@ -207,6 +207,26 @@
                 <div class="card-header"><h5 class="card-title mb-0">Call History Membership</h5></div>
                 <div class="card-body" id="callhistory-results">
                     <div class="text-muted">Type a callsign to see membership details from your uploaded call history files.</div>
+                </div>
+            </div>
+
+            <!-- Contest Stats Card -->
+            <div class="card mt-3" id="contest-stats-card" style="display:none">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <div>
+                            <span class="text-muted me-1">Session:</span>
+                            <span class="badge text-bg-primary" id="stats-total">0 QSOs</span>
+                        </div>
+                        <div>
+                            <span class="text-muted me-1">By Band:</span>
+                            <span id="stats-bands"></span>
+                        </div>
+                        <div>
+                            <span class="text-muted me-1">Rate:</span>
+                            <span class="badge text-bg-info" id="stats-rate">0/hr</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

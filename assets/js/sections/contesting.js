@@ -465,6 +465,7 @@ $('#start_date').change(function () {
 });
 
 // On Key up check and suggest callsigns
+var dupeCheckTimer = null;
 $("#callsign").keyup(function () {
 	var call = $(this).val();
 	if (call.length >= 3) {
@@ -476,18 +477,28 @@ $("#callsign").keyup(function () {
 				callsign: $(this).val().toUpperCase()
 			},
 			success: function (result) {
-				$('.callsign-suggestions').text(result);
-				highlight(call.toUpperCase());
+				if (result && result.trim() !== '') {
+					$('.callsign-suggestions').text(result);
+					highlight(call.toUpperCase());
+					$('.callsign-suggest').show();
+				} else {
+					$('.callsign-suggestions').text('');
+					$('.callsign-suggest').hide();
+				}
 			}
 		});
-		// moved to blur
-		// checkIfWorkedBefore();
+		// Debounced dupe check while typing
+		clearTimeout(dupeCheckTimer);
+		dupeCheckTimer = setTimeout(function() { checkIfWorkedBefore(); }, 400);
 		var qTable = $('.qsotable').DataTable();
 		qTable.search(call).draw();
 		lookupCallhistory(call.toUpperCase());
 	}
 	else if (call.length <= 2) {
 		$('.callsign-suggestions').text("");
+		$('.callsign-suggest').hide();
+		$('#callsign').css({'border-color': '', 'box-shadow': ''});
+		$('#callsign_info').text("").removeClass('text-bg-danger text-bg-success');
 		renderCallhistoryPanel([]);
 		if ($.fn.DataTable.isDataTable('.qsotable')) {
 			$('.qsotable').DataTable().search('').draw();
@@ -513,13 +524,16 @@ function checkIfWorkedBefore() {
 					$('#callsign_info').removeClass('text-bg-success');
 					$('#callsign_info').addClass('text-bg-danger');
 					$('#callsign_info').text(result.message);
+					$('#callsign').css({'border-color': '#dc3545', 'box-shadow': '0 0 0 0.2rem rgba(220,53,69,.25)'});
 				}
 				else if (result.message == "OKAY") {
 					$('#callsign_info').removeClass('text-bg-danger');
 					$('#callsign_info').addClass('text-bg-success');
 					$('#callsign_info').text("Go Work Them!");
+					$('#callsign').css({'border-color': '#198754', 'box-shadow': '0 0 0 0.2rem rgba(25,135,84,.25)'});
 				} else {
 					$('#callsign_info').text("");
+					$('#callsign').css({'border-color': '', 'box-shadow': ''});
 				}
 			}
 		});
@@ -529,14 +543,16 @@ function checkIfWorkedBefore() {
 			calculateCallsignBearingDistance(call);
 		}
 	} else {
-		$('#callsign_info').text("");
+		$('#callsign_info').text("").removeClass('text-bg-danger text-bg-success');
+		$('#callsign').css({'border-color': '', 'box-shadow': ''});
 	}
 }
 
 async function reset_log_fields() {
 	$('#name').val("");
 	$('.callsign-suggestions').text("");
-	$('#callsign').val("");
+	$('.callsign-suggest').hide();
+	$('#callsign').val("").css({'border-color': '', 'box-shadow': ''});
 	$('#comment').val("");
 	$('#exch_rcvd').val("");
 	$('#exch_serial_r').val("");
@@ -549,7 +565,7 @@ async function reset_log_fields() {
 	$('#distance_contest_dxcc').hide();
 	$("#callsign").focus();
 	setRst($("#mode").val());
-	$('#callsign_info').text("");
+	$('#callsign_info').text("").removeClass('text-bg-danger text-bg-success');
 	renderCallhistoryPanel([]);
 
 	sessiondata = await getSession();
@@ -649,6 +665,7 @@ function setExchangetype(exchangetype) {
 	}
 
 	setContestingTabOrder(exchangetype);
+	updateTableColumns(exchangetype);
 }
 
 /*
@@ -747,6 +764,9 @@ function logQso() {
 				$('#exch_gridsquare_r').val("");
 				$('#exch_serial_r').val("");
 				$('.callsign-suggestions').text("");
+				$('.callsign-suggest').hide();
+				$('#callsign').css({'border-color': '', 'box-shadow': ''});
+				$('#callsign_info').text("").removeClass('text-bg-danger text-bg-success');
 				renderCallhistoryPanel([]);
                 if (manual) {
                   $("#start_time").focus().select();
@@ -810,14 +830,19 @@ async function refresh_qso_table(data) {
 			success: function (html) {
 				var mode = '';
 				$(".contest_qso_table_contents").empty();
+				var dupeCounts = {};
+				$.each(html, function () {
+					var key = this.col_call + '|' + this.col_band + '|' + this.col_mode;
+					dupeCounts[key] = (dupeCounts[key] || 0) + 1;
+				});
 				$.each(html, function () {
 					if (this.col_submode == null || this.col_submode == '') {
 						mode = this.col_mode;
 					} else {
 						mode = this.col_submode;
 					}
-
-					$(".qsotable tbody").prepend('<tr>' +
+					var isDupe = dupeCounts[this.col_call + '|' + this.col_band + '|' + this.col_mode] > 1;
+					$(".qsotable tbody").prepend('<tr' + (isDupe ? ' class="table-warning"' : '') + '>' +
 						'<td>' + this.col_time_on + '</td>' +
 						'<td>' + this.col_call + '</td>' +
 						'<td>' + this.col_band + '</td>' +
@@ -862,6 +887,8 @@ async function refresh_qso_table(data) {
 						]
 					});
 				}
+				updateContestStats(html);
+				updateTableColumns($('#exchangetype').val());
 			}
 		});
 	} else {
@@ -875,14 +902,19 @@ async function refresh_qso_table(data) {
 			success: function (html) {
 				var mode = '';
 				$(".contest_qso_table_contents").empty();
+				var dupeCounts = {};
+				$.each(html, function () {
+					var key = this.col_call + '|' + this.col_band + '|' + this.col_mode;
+					dupeCounts[key] = (dupeCounts[key] || 0) + 1;
+				});
 				$.each(html, function () {
 					if (this.col_submode == null || this.col_submode == '') {
 						mode = this.col_mode;
 					} else {
 						mode = this.col_submode;
 					}
-
-					$(".qsotable tbody").prepend('<tr>' +
+					var isDupe = dupeCounts[this.col_call + '|' + this.col_band + '|' + this.col_mode] > 1;
+					$(".qsotable tbody").prepend('<tr' + (isDupe ? ' class="table-warning"' : '') + '>' +
 						'<td>' + this.col_time_on + '</td>' +
 						'<td>' + this.col_call + '</td>' +
 						'<td>' + this.col_band + '</td>' +
@@ -927,9 +959,72 @@ async function refresh_qso_table(data) {
 						]
 					});
 				}
+				updateContestStats(html);
+				updateTableColumns($('#exchangetype').val());
 			}
 		});
 	}
+}
+
+function updateTableColumns(exchangetype) {
+	if (!$.fn.DataTable.isDataTable('.qsotable')) return;
+	var table = $('.qsotable').DataTable();
+	var showExch   = ['Exchange', 'Serialexchange'].indexOf(exchangetype) !== -1;
+	var showSerial = ['Serial', 'Serialexchange', 'Serialgridsquare'].indexOf(exchangetype) !== -1;
+	var showGrid   = ['Gridsquare', 'Serialgridsquare'].indexOf(exchangetype) !== -1;
+	table.column(6).visible(showExch, false);
+	table.column(7).visible(showExch, false);
+	table.column(8).visible(showSerial, false);
+	table.column(9).visible(showSerial, false);
+	table.column(10).visible(showGrid, false);
+	table.column(11).visible(showGrid, false);
+	table.columns.adjust().draw(false);
+}
+
+function updateContestStats(qsoData) {
+	if (!qsoData || qsoData.length === 0) {
+		$('#contest-stats-card').hide();
+		return;
+	}
+
+	var bandOrder = ['160m','80m','60m','40m','30m','20m','17m','15m','12m','10m','6m','4m','2m','70cm','23cm'];
+	var bandCounts = {};
+	var now = new Date();
+	var cutoff = new Date(now.getTime() - 60 * 60 * 1000);
+	var recentCount = 0;
+
+	$.each(qsoData, function () {
+		var band = this.col_band || 'Unknown';
+		bandCounts[band] = (bandCounts[band] || 0) + 1;
+
+		// Parse col_time_on: format DD-MM-YYYY HH:mm:ss
+		var parts = this.col_time_on.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+		if (parts) {
+			var qsoTime = new Date(Date.UTC(
+				parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]),
+				parseInt(parts[4]), parseInt(parts[5]), parseInt(parts[6])
+			));
+			if (qsoTime >= cutoff) {
+				recentCount++;
+			}
+		}
+	});
+
+	var total = qsoData.length;
+	$('#stats-total').text(total + (total === 1 ? ' QSO' : ' QSOs'));
+	$('#stats-rate').text(recentCount + '/hr');
+
+	// Build per-band badges in canonical order, then remaining bands alphabetically
+	var orderedBands = bandOrder.filter(function (b) { return bandCounts[b]; });
+	var extraBands = Object.keys(bandCounts).filter(function (b) { return bandOrder.indexOf(b) === -1; }).sort();
+	var allBands = orderedBands.concat(extraBands);
+
+	var html = allBands.map(function (b) {
+		return '<span class="badge text-bg-secondary me-1">' + b + ': ' + bandCounts[b] + '</span>';
+	}).join('');
+	$('#stats-bands').html(html);
+
+	$('#contest-stats-card').show();
 }
 
 function pad(str, max) {
