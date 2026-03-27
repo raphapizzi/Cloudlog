@@ -208,10 +208,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if a spotter is an RBN spot
     function isRbnSpot(spotter) {
         if (!spotter) return false;
-        // RBN spots have callsigns like DM5GG-# or DM5GG-1
-        // Match any callsign ending with hyphen followed by # or digits
-        const trimmedSpotter = spotter.trim().toUpperCase();
-        return /\-[#\d]+$/.test(trimmedSpotter);
+        // RBN skimmers always end with -# (literal hash), not a numeric SSID
+        return /\-#+$/.test(spotter.trim());
     }
     
     // Determine band from frequency (in kHz)
