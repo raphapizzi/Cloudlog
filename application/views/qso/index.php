@@ -970,6 +970,10 @@
                   <input class="form-check-input" type="checkbox" id="qso-cluster-hide-rbn" checked>
                   <label class="form-check-label" for="qso-cluster-hide-rbn" style="font-size:0.8rem;">Hide RBN</label>
                 </div>
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" id="qso-cluster-track-band">
+                  <label class="form-check-label" for="qso-cluster-track-band" style="font-size:0.8rem;">Track Band</label>
+                </div>
               </div>
               <div>
                 <table class="table table-sm table-striped table-hover mb-0" id="qso-cluster-table">
@@ -1137,6 +1141,7 @@
     checkWorkedTimeout: null,
     initialized: false,
     hideRbn: true,
+    trackBand: false,
     selectedBand: 'all',
     dataTable: null,
 
@@ -1151,6 +1156,13 @@
       }
       var rbnChk = document.getElementById('qso-cluster-hide-rbn');
       if (rbnChk) rbnChk.checked = this.hideRbn;
+
+      var savedTrack = localStorage.getItem('cloudlog_clusterTrackBand');
+      if (savedTrack !== null) {
+        this.trackBand = savedTrack === 'true';
+      }
+      var trackChk = document.getElementById('qso-cluster-track-band');
+      if (trackChk) trackChk.checked = this.trackBand;
 
       var savedBand = localStorage.getItem('cloudlog_bandFilter');
       if (savedBand !== null) {
@@ -1175,6 +1187,16 @@
           self.selectedBand = e.target.value;
           localStorage.setItem('cloudlog_bandFilter', self.selectedBand);
           self.renderTable();
+        });
+      }
+
+      var trackEl = document.getElementById('qso-cluster-track-band');
+      if (trackEl) {
+        trackEl.addEventListener('change', function(e) {
+          self.trackBand = e.target.checked;
+          localStorage.setItem('cloudlog_clusterTrackBand', self.trackBand.toString());
+          if (!self.trackBand) { self.setBandFilter('all'); }
+          else { self.syncBandFromRadio(); }
         });
       }
 
@@ -1344,6 +1366,7 @@
     },
 
     syncBandFromRadio: function() {
+      if (!this.trackBand) return;
       var radioVal = $('#radio').val();
       if (!radioVal || radioVal === '0') {
         this.setBandFilter('all');
