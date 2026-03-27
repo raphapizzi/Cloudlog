@@ -775,8 +775,8 @@ function reset_fields() {
 	var selectize = $select[0].selectize;
 	selectize.clear();
 	var $select = $('#darc_dok').selectize();
-	var selectize = $select[0].selectize;
-	selectize.clear();
+	var selectize = $select[0] ? $select[0].selectize : null;
+	if (selectize) selectize.clear();
 	$select = $('#stationCntyInput').selectize();
 	selectize = $select[0].selectize;
 	selectize.clear();
@@ -917,16 +917,16 @@ $("#callsign").focusout(function() {
 				$('#hamqth_info').attr('title', 'Lookup '+callsign+' info on hamqth.com');
 
 				var $dok_select = $('#darc_dok').selectize();
-				var dok_selectize = $dok_select[0].selectize;
+				var dok_selectize = $dok_select[0] ? $dok_select[0].selectize : null;
 				if (result.dxcc.adif == '230') {
 					$.get(base_url + 'index.php/lookup/dok/' + $('#callsign').val().toUpperCase(), function(result) {
-						if (result) {
+						if (result && dok_selectize) {
 							dok_selectize.addOption({name: result});
 							dok_selectize.setValue(result, false);
 						}
 					});
 				} else {
-					dok_selectize.clear();
+					if (dok_selectize) dok_selectize.clear();
 				}
 
 				$('#dxcc_id').val(result.dxcc.adif).trigger('change');

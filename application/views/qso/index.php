@@ -595,13 +595,11 @@
                 </div>
                 <?php endif; // sig ?>
 
-                <?php if ($qso_fields['dok']): ?>
-                <div class="mb-3" id="dok_field_wrapper" style="display:none">
+                <div class="mb-3" id="dok_field_wrapper" style="display:none"<?php if (!$qso_fields['dok']): ?> data-user-hidden="true"<?php endif; ?>>
                   <label for="darc_dok"><?php echo lang('gen_hamradio_dok'); ?></label>
                   <input class="form-control" id="darc_dok" type="text" name="darc_dok" value="" />
                   <small id="dokHelp" class="form-text text-muted"><?php echo lang('qso_dok_helptext'); ?></small>
                 </div>
-                <?php endif; // dok ?>
               </div>
               <?php endif; // general_tab ?>
 
@@ -1014,7 +1012,7 @@
   // Show DOK field only when DXCC is Germany (230)
   function toggleDokField() {
     var wrapper = document.getElementById('dok_field_wrapper');
-    if (!wrapper) return;
+    if (!wrapper || wrapper.dataset.userHidden === 'true') return;
     var dxcc = document.getElementById('dxcc_id');
     if (dxcc && dxcc.value == '230') {
       wrapper.style.display = '';
