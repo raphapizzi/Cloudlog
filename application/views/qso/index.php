@@ -1464,7 +1464,7 @@
         ]);
       });
 
-      this.dataTable.draw();
+      this.dataTable.draw(false);
     },
 
     checkWorkedStatus: async function() {
