@@ -161,6 +161,13 @@
 			return $this->db->query($sql);
 		}
 
+		// Return recent radio status for a specific user_id (no session required, for public widgets)
+		function recent_status_by_user_id($user_id) {
+			$this->db->where('user_id', (int)$user_id);
+			$this->db->where("timestamp > date_sub(UTC_TIMESTAMP(), interval 15 minute)", NULL, FALSE);
+			return $this->db->get('cat');
+		}
+
 	function delete($id) {
 		$this->db->where('id', $id);
 		$this->db->where('user_id', $this->session->userdata('user_id'));

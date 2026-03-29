@@ -45,4 +45,27 @@ class Widgets extends CI_Controller {
 			$this->load->view('widgets/qsos', $data);
 		}
 	}
+
+	// Embeddable "on air" status widget - pass a callsign to get current radio/satellite status.
+	// Embed via: <iframe src="/widgets/on_air/M0ABC" width="300" height="120" frameborder="0"></iframe>
+	public function on_air($callsign = null) {
+		if ($callsign == null) {
+			show_error('Please provide a callsign. Usage: widgets/on_air/YOURCALL');
+		}
+
+		$this->load->model('user_model');
+		$user_result = $this->user_model->get_by_callsign($callsign);
+
+		if ($user_result->num_rows() == 0) {
+			show_error('No user found with callsign: ' . htmlspecialchars($callsign, ENT_QUOTES, 'UTF-8'));
+		}
+
+		$user = $user_result->row();
+
+		$this->load->model('cat');
+		$data['radio_status'] = $this->cat->recent_status_by_user_id($user->user_id);
+		$data['callsign'] = strtoupper($this->security->xss_clean($callsign));
+
+		$this->load->view('widgets/on_air', $data);
+	}
 }
