@@ -52,27 +52,37 @@ var DXCluster = (function () {
     function detectModeFromFrequency(freqKhz) {
         // Known FT8 / FT4 spot frequencies (kHz)
         var ft8ft4Freqs = [
+            1836,    // FT8 160m
             1840,    // FT8 160m
             1844,    // FT4 160m
+            3567,    // FT8 80m
             3573,    // FT8 80m
             3575.5,  // FT4 80m
             5357,    // FT8 60m
             7047.5,  // FT4 40m
             7074,    // FT8 40m
+            10130,   // FT8 30m
             10136,   // FT8 30m
-            10140,   // FT4 30m
+            10140,   // FT8 30m
             14074,   // FT8 20m
             14080,   // FT4 20m
+            14090,   // FT8 20m
+            18095,   // FT8 17m
             18100,   // FT8 17m
             18104,   // FT4 17m
             21074,   // FT8 15m
+            21090,   // FT8 15m
             21140,   // FT4 15m
+            24911,   // FT8 12m
             24915,   // FT8 12m
             24919,   // FT4 12m
             28074,   // FT8 10m
+            28090,   // FT8 10m
+            28095,   // FT8 10m
             28180,   // FT4 10m
             50313,   // FT8 6m
             50318,   // FT4 6m
+            50323,   // FT8 6m
             70154,   // FT8 4m
             144174,  // FT8 2m
             144170,  // FT4 2m
@@ -84,13 +94,17 @@ var DXCluster = (function () {
         }
 
         // 160m
-        if (freqKhz >= 1800  && freqKhz < 1838)  return 'cw';
-        if (freqKhz >= 1838  && freqKhz < 1843)  return 'digi';
+        if (freqKhz >= 1800  && freqKhz < 1840)  return 'cw';
+        if (freqKhz >= 1840  && freqKhz < 1843)  return 'digi';
         if (freqKhz >= 1843  && freqKhz <= 2000) return 'ssb';
         // 80m
         if (freqKhz >= 3500  && freqKhz < 3570)  return 'cw';
         if (freqKhz >= 3570  && freqKhz < 3600)  return 'digi';
         if (freqKhz >= 3600  && freqKhz <= 4000) return 'ssb';
+        // 60m
+        if (freqKhz >= 5351  && freqKhz < 5354)  return 'cw';
+        if (freqKhz >= 5354  && freqKhz < 5358)  return 'digi';
+        if (freqKhz >= 5358  && freqKhz <= 5366) return 'ssb';
         // 40m
         if (freqKhz >= 7000  && freqKhz < 7040)  return 'cw';
         if (freqKhz >= 7040  && freqKhz < 7060)  return 'digi';
@@ -120,20 +134,21 @@ var DXCluster = (function () {
         if (freqKhz >= 28190 && freqKhz <= 29700) return 'ssb';
         // 6m
         if (freqKhz >= 50000 && freqKhz < 50100)  return 'cw';
-        if (freqKhz >= 50100 && freqKhz < 50500)  return 'digi';
-        if (freqKhz >= 50500 && freqKhz <= 54000) return 'ssb';
+        if (freqKhz >= 50100 && freqKhz < 50300)  return 'ssb';
+        if (freqKhz >= 50300 && freqKhz <= 50500) return 'digi';
+        if (freqKhz > 50500  && freqKhz <= 54000) return 'ssb';
         // 4m
         if (freqKhz >= 70000 && freqKhz < 70100)  return 'cw';
         if (freqKhz >= 70100 && freqKhz < 70200)  return 'digi';
         if (freqKhz >= 70200 && freqKhz <= 70500) return 'ssb';
         // 2m
-        if (freqKhz >= 144000 && freqKhz < 144150) return 'cw';
-        if (freqKhz >= 144150 && freqKhz < 144500) return 'digi';
-        if (freqKhz >= 144500 && freqKhz <= 148000) return 'ssb';
+        if (freqKhz >= 144000 && freqKhz < 144173) return 'cw';
+        if (freqKhz >= 144170 && freqKhz < 144176) return 'digi';
+        if (freqKhz >= 144176 && freqKhz <= 148000) return 'ssb';
         // 70cm
-        if (freqKhz >= 432000 && freqKhz < 432100) return 'cw';
-        if (freqKhz >= 432100 && freqKhz < 432500) return 'digi';
-        if (freqKhz >= 432500 && freqKhz <= 450000) return 'ssb';
+        if (freqKhz >= 432000 && freqKhz < 432170) return 'cw';
+        if (freqKhz >= 432170 && freqKhz < 432175) return 'digi';
+        if (freqKhz >= 432175 && freqKhz <= 450000) return 'ssb';
         // Other VHF/UHF/SHF — default to SSB
         return 'ssb';
     }
