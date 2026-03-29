@@ -5648,7 +5648,13 @@ class Logbook_model extends CI_Model
       $plot['callsign'] = $row->COL_CALL;
       $flag = strtolower($CI->dxccflag->getISO($row->COL_DXCC));
       $plot['flag'] = '<span data-bs-toggle="tooltip" title="' . ucwords(strtolower(($row->name == null ? "- NONE -" : $row->name))) . '"><span class="fi fi-' . $flag . '"></span></span> ';
-      $plot['html'] = ($row->COL_GRIDSQUARE != null ?  "<b>Grid:</b> " . $row->COL_GRIDSQUARE . "<br />" : "");
+      if ($row->COL_GRIDSQUARE != null) {
+        $plot['html'] = "<b>Grid:</b> " . $row->COL_GRIDSQUARE . "<br />";
+      } elseif (!empty($row->COL_VUCC_GRIDS)) {
+        $plot['html'] = "<b>VUCC:</b> " . $row->COL_VUCC_GRIDS . "<br />";
+      } else {
+        $plot['html'] = "";
+      }
       $plot['html'] .= "<b>Date/Time:</b> " . $row->COL_TIME_ON . "<br />";
       $plot['html'] .= ($row->COL_SAT_NAME != null) ? ("<b>SAT:</b> " . $row->COL_SAT_NAME . "<br />") : ("<b>Band:</b> " . $row->COL_BAND . " ");
       $plot['html'] .= "<b>Mode:</b> " . ($row->COL_SUBMODE == null ? $row->COL_MODE : $row->COL_SUBMODE) . "<br />";

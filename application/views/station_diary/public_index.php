@@ -517,7 +517,7 @@
 													const isSatelliteQso = ((qso.COL_PROP_MODE || '').toUpperCase() === 'SAT') || !!qso.COL_SAT_NAME;
 													const bandOrSatellite = isSatelliteQso ? (qso.COL_SAT_NAME || 'SAT') : (qso.COL_BAND || '-');
 								const ent = (text) => (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-													return `<tr><td>${dateTimeStr}</td><td><strong>${ent(qso.COL_CALL)}</strong></td><td>${ent(bandOrSatellite)}</td><td>${ent((qso.COL_SUBMODE || qso.COL_MODE) || '-')}</td><td>${ent(qso.COL_COUNTRY || '-')}</td><td>${ent(qso.COL_GRIDSQUARE || '-')}</td></tr>`;
+													return `<tr><td>${dateTimeStr}</td><td><strong>${ent(qso.COL_CALL)}</strong></td><td>${ent(bandOrSatellite)}</td><td>${ent((qso.COL_SUBMODE || qso.COL_MODE) || '-')}</td><td>${ent(qso.COL_COUNTRY || '-')}</td><td>${ent(qso.COL_GRIDSQUARE || qso.COL_VUCC_GRIDS || '-')}</td></tr>`;
 							}).join('');
 						} else if (tbody) {
 							tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No QSOs match the selected filters</td></tr>';
