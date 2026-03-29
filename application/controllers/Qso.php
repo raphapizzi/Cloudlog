@@ -52,6 +52,9 @@ class QSO extends CI_Controller {
 			$data['user_date_format'] = $this->config->item('qso_date_format');
 		}
 
+		// Measurement base for frontend bearing/distance calculations
+		$data['measurement_base'] = $this->session->userdata('user_measurement_base') ?: $this->config->item('measurement_base');
+
 		$this->load->library('form_validation');
 
 		$this->form_validation->set_rules('start_date', 'Date', 'required');

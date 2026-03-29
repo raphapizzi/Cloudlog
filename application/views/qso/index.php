@@ -2,6 +2,12 @@
 <div class="container qso_panel">
   <script language="javascript">
     var qso_manual = "<?php echo $manual; ?>";
+    var station_gridsquares = <?php
+        $sq = [];
+        foreach ($stations->result() as $st) { $sq[(int)$st->station_id] = $st->station_gridsquare; }
+        echo json_encode($sq);
+    ?>;
+    var qso_measurement_base = "<?php echo htmlspecialchars($measurement_base ?? 'K', ENT_QUOTES, 'UTF-8'); ?>";
     var text_error_timeoff_less_timeon = "<?php echo lang('qso_error_timeoff_less_timeon'); ?>";
     var lang_qso_title_previous_contacts = "<?php echo lang('qso_title_previous_contacts'); ?>";
     var lang_qso_title_times_worked_before = "<?php echo lang('qso_title_times_worked_before'); ?>";

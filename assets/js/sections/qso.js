@@ -1151,9 +1151,13 @@ $('#band').change(function() {
 });
 
 /* On Key up Calculate Bearing and Distance */
+var locatorDebounceTimer = null;
 $("#locator").keyup(function(){
-	if ($(this).val()) {
-		var qra_input = $(this).val();
+	clearTimeout(locatorDebounceTimer);
+	var $locator = $(this);
+	locatorDebounceTimer = setTimeout(function(){
+	if ($locator.val()) {
+		var qra_input = $locator.val();
 
 		var qra_lookup = qra_input.substring(0, 4);
 
@@ -1207,64 +1211,36 @@ $("#locator").keyup(function(){
 			}
 		}
 
-		if(qra_input.length >= 4 && $(this).val().length > 0) {
-			$.ajax({
-				url: base_url + 'index.php/logbook/qralatlngjson',
-				type: 'post',
-				data: {
-					qra: $(this).val(),
-				},
-				success: function(data) {
-					// Set Map to Lat/Long
-					result = JSON.parse(data);
-					markers.clearLayers();
-					if (typeof result[0] !== "undefined" && typeof result[1] !== "undefined") {
-						var redIcon = L.icon({
-							iconUrl: icon_dot_url,
-							iconSize:     [18, 18], // size of the icon
-						});
+		if(qra_input.length >= 4 && $locator.val().length > 0) {
+			// Map pin — grid → lat/lng (pure frontend math, no server round-trip)
+			var latlng = QraUtils.qra2latlong(qra_input);
+			markers.clearLayers();
+			if (latlng && typeof latlng[0] !== "undefined" && typeof latlng[1] !== "undefined") {
+				var redIcon = L.icon({
+					iconUrl: icon_dot_url,
+					iconSize: [18, 18],
+				});
+				var marker = L.marker([latlng[0], latlng[1]], {icon: redIcon});
+				mymap.setZoom(8);
+				mymap.panTo([latlng[0], latlng[1]]);
+				mymap.setView([latlng[0], latlng[1]], 8);
+				markers.addLayer(marker).addTo(mymap);
+			}
 
-						var marker = L.marker([result[0], result[1]], {icon: redIcon});
-						mymap.setZoom(8);
-						mymap.panTo([result[0], result[1]]);
-						mymap.setView([result[0], result[1]], 8);
-					   markers.addLayer(marker).addTo(mymap);
-					}
-				},
-				error: function() {
-				},
-			});
+			// Bearing and distance — pure frontend math using injected station gridsquares
+			var myGrid = station_gridsquares[$('#stationProfile').val()];
+			if (myGrid) {
+				var bearingStr = QraUtils.bearingString(myGrid, qra_input, qso_measurement_base);
+				if (bearingStr) {
+					$('#locator_info').html(bearingStr).fadeIn("slow");
+				}
 
-			$.ajax({
-				url: base_url + 'index.php/logbook/searchbearing',
-				type: 'post',
-				data: {
-					grid: $(this).val(),
-					stationProfile: $('#stationProfile').val()
-				},
-				success: function(data) {
-					$('#locator_info').html(data).fadeIn("slow");
-				},
-				error: function() {
-					$('#locator_info').text("Error loading bearing!").fadeIn("slow");
-				},
-			});
-			$.ajax({
-				url: base_url + 'index.php/logbook/searchdistance',
-				type: 'post',
-				data: {
-					grid: $(this).val(),
-					stationProfile: $('#stationProfile').val()
-				},
-				success: function(data) {
-					document.getElementById("distance").value = data;
-				},
-				error: function() {
-					document.getElementById("distance").value = null;
-				},
-			});
+				var dist = QraUtils.distanceKm(myGrid, qra_input);
+				document.getElementById("distance").value = dist !== null ? dist : '';
+			}
 		}
 	}
+	}, 300);
 });
 
 // Change report based on mode
