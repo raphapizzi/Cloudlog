@@ -172,6 +172,9 @@
                                     $htmlContent = preg_replace('/^### (.+)$/m', '<h4>$1</h4>', $htmlContent);
                                     $htmlContent = preg_replace('/^## (.+)$/m', '<h3>$1</h3>', $htmlContent);
                                     $htmlContent = preg_replace('/^# (.+)$/m', '<h2>$1</h2>', $htmlContent);
+
+                                    // Convert markdown horizontal rules (---, ***, ___)
+                                    $htmlContent = preg_replace('/^[ \t]{0,3}(?:\*{3,}|-{3,}|_{3,})[ \t]*$/m', '<hr>', $htmlContent);
                                     
                                     // Convert bold text (**text** or __text__) - must be before italic
                                     $htmlContent = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $htmlContent);
@@ -195,7 +198,7 @@
                                     
                                     // Replace newlines after block-level elements with a marker to prevent nl2br from converting them
                                     $htmlContent = preg_replace('/(<\/(?:h[1-6]|ul|ol|li|pre)>)\r?\n/', '$1<!--BLOCK-->', $htmlContent);
-                                    $htmlContent = preg_replace('/(<(?:ul|ol|pre)>)\r?\n/', '$1<!--BLOCK-->', $htmlContent);
+                                    $htmlContent = preg_replace('/(<(?:ul|ol|pre|hr\s*\/?)>)\r?\n/i', '$1<!--BLOCK-->', $htmlContent);
                                     
                                     // Convert line breaks to <br> tags
                                     $htmlContent = nl2br($htmlContent);
@@ -206,8 +209,8 @@
                                     $htmlContent = preg_replace('/<!--BLOCK-->/', '', $htmlContent);
                                     
                                     // Additional cleanup: remove br tags immediately before and after block elements
-                                    $htmlContent = preg_replace('/<br\s*\/?>\s*(<(?:h[1-6]|ul|ol|li|pre|code)[^>]*>)/i', '$1', $htmlContent);
-                                    $htmlContent = preg_replace('/(<\/(?:h[1-6]|ul|ol|li|pre)>)\s*<br\s*\/?>/i', '$1', $htmlContent);
+                                    $htmlContent = preg_replace('/<br\s*\/?>\s*(<(?:h[1-6]|ul|ol|li|pre|code|hr)[^>]*>)/i', '$1', $htmlContent);
+                                    $htmlContent = preg_replace('/(<\/(?:h[1-6]|ul|ol|li|pre)>|<(?:hr\s*\/?)>)\s*<br\s*\/?>/i', '$1', $htmlContent);
                                     
                                     // Remove multiple consecutive br tags (more than 2)
                                     $htmlContent = preg_replace('/(<br\s*\/?>){3,}/', '<br><br>', $htmlContent);
