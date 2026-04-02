@@ -608,6 +608,7 @@ class API extends CI_Controller
 	 * Optional fields:
 	 * - band
 	 * - mode
+	 * - gridsquare
 	 */
 	function logbook_worked_status()
 	{
@@ -641,6 +642,7 @@ class API extends CI_Controller
 		$callsign = strtoupper(trim($obj['callsign']));
 		$band = isset($obj['band']) && trim($obj['band']) !== '' ? strtoupper(trim($obj['band'])) : null;
 		$mode = isset($obj['mode']) && trim($obj['mode']) !== '' ? strtoupper(trim($obj['mode'])) : null;
+		$gridsquare = isset($obj['gridsquare']) && trim($obj['gridsquare']) !== '' ? strtoupper(trim($obj['gridsquare'])) : null;
 
 		$date = date("Y-m-d");
 		$callsign_dxcc_lookup = $this->logbook_model->dxcc_lookup($callsign, $date);
@@ -671,11 +673,14 @@ class API extends CI_Controller
 			'country' => $country,
 			'band' => $band,
 			'mode' => $mode,
+			'gridsquare' => $gridsquare,
 			'worked' => [
 				'callsign_overall' => false,
 				'callsign_band' => $band !== null ? false : null,
 				'country_overall' => false,
 				'country_band' => $band !== null ? false : null,
+				'grid_overall' => $gridsquare !== null ? false : null,
+				'grid_band' => ($gridsquare !== null && $band !== null) ? false : null,
 			],
 			'confirmed' => [
 				'callsign' => [
@@ -725,6 +730,16 @@ class API extends CI_Controller
 				}
 				$country_band_query = $this->db->get($table_name, 1, 0);
 				$return['worked']['country_band'] = $country_band_query->num_rows() > 0;
+			}
+		}
+
+		if ($gridsquare !== null) {
+			$grid_overall_result = $this->logbook_model->check_if_grid_worked_in_logbook($gridsquare, $logbooks_locations_array, null);
+			$return['worked']['grid_overall'] = $grid_overall_result > 0;
+
+			if ($band !== null) {
+				$grid_band_result = $this->logbook_model->check_if_grid_worked_in_logbook($gridsquare, $logbooks_locations_array, $band);
+				$return['worked']['grid_band'] = $grid_band_result > 0;
 			}
 		}
 
