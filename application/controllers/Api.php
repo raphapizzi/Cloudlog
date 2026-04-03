@@ -177,6 +177,45 @@ class API extends CI_Controller
 		}
 	}
 
+	/**
+	 * Get station logbooks that have public slugs for the API key owner.
+	 * GET /api/logbook_public_slugs/{key}
+	 */
+	function logbook_public_slugs($key)
+	{
+		header('Content-type: application/json');
+
+		$this->load->model('api_model');
+		$this->load->model('logbooks_model');
+
+		if (!$key || $this->api_model->authorize($key) == 0) {
+			http_response_code(401);
+			echo json_encode(['status' => 'failed', 'reason' => 'missing or invalid api key']);
+			return;
+		}
+
+		$this->api_model->update_last_used($key);
+		$user_id = $this->api_model->key_userid($key);
+
+		$query = $this->logbooks_model->public_slugs_by_user($user_id);
+		$logbooks = array();
+
+		foreach ($query->result() as $row) {
+			$logbooks[] = array(
+				'logbook_id' => (int)$row->logbook_id,
+				'logbook_name' => $row->logbook_name,
+				'public_slug' => $row->public_slug,
+			);
+		}
+
+		http_response_code(200);
+		echo json_encode(array(
+			'status' => 'success',
+			'count' => count($logbooks),
+			'logbooks' => $logbooks,
+		), JSON_PRETTY_PRINT);
+	}
+
 
 	/*
 	*

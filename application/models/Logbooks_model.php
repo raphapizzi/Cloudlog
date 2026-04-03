@@ -243,6 +243,19 @@ class Logbooks_model extends CI_Model {
 		}
 	}
 
+	function public_slugs_by_user($user_id) {
+		$clean_user_id = $this->security->xss_clean($user_id);
+
+		$this->db->select('logbook_id, logbook_name, public_slug');
+		$this->db->from('station_logbooks');
+		$this->db->where('user_id', $clean_user_id);
+		$this->db->where('public_slug IS NOT NULL', null, false);
+		$this->db->where("public_slug != ''", null, false);
+		$this->db->order_by('logbook_name', 'ASC');
+
+		return $this->db->get();
+	}
+
 	function is_public_slug_available($slug) {
 		// Clean public_slug
 		$clean_slug = $this->security->xss_clean($slug);
