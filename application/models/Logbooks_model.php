@@ -256,6 +256,29 @@ class Logbooks_model extends CI_Model {
 		return $this->db->get();
 	}
 
+	function public_slugs_accessible_by_user($user_id) {
+		$clean_user_id = $this->security->xss_clean($user_id);
+
+		$this->db->select('station_logbooks.logbook_id, station_logbooks.logbook_name, station_logbooks.public_slug,
+			CASE
+				WHEN station_logbooks.user_id = '.$this->db->escape($clean_user_id).' THEN "owner"
+				ELSE slp.permission_level
+			END as access_level', FALSE);
+		$this->db->from('station_logbooks');
+		$this->db->join('station_logbooks_permissions slp',
+			'slp.logbook_id = station_logbooks.logbook_id AND slp.user_id = '.$this->db->escape($clean_user_id),
+			'left');
+		$this->db->group_start();
+			$this->db->where('station_logbooks.user_id', $clean_user_id);
+			$this->db->or_where('slp.user_id', $clean_user_id);
+		$this->db->group_end();
+		$this->db->where('station_logbooks.public_slug IS NOT NULL', null, false);
+		$this->db->where("station_logbooks.public_slug != ''", null, false);
+		$this->db->order_by('station_logbooks.logbook_name', 'ASC');
+
+		return $this->db->get();
+	}
+
 	function is_public_slug_available($slug) {
 		// Clean public_slug
 		$clean_slug = $this->security->xss_clean($slug);
