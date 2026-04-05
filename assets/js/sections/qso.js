@@ -10,6 +10,19 @@ function normalizeFieldValue(value) {
 	return String(value ?? "").trim();
 }
 
+function escapeNoticeValue(value) {
+	return String(value || '').replace(/[&<>"']/g, function(char) {
+		var escapes = {
+			'&': '&amp;',
+			'<': '&lt;',
+			'>': '&gt;',
+			'"': '&quot;',
+			"'": '&#39;'
+		};
+		return escapes[char] || char;
+	});
+}
+
 function showQsoNotice(message, alertType) {
 	var safeType = alertType || 'info';
 	var $container = $('#notice-alerts-container');
@@ -605,9 +618,14 @@ var favs={};
 				success: function(response) {
 					if (response && response.status === 'ok') {
 						var savedCallsign = normalizeFieldValue($('#callsign').val()).toUpperCase();
+						var savedBand = normalizeFieldValue($('#band').val());
 						var saveMessage = (response && response.message) ? response.message : 'QSO Added';
-						if (savedCallsign) {
-							saveMessage += ': <strong>' + savedCallsign + '</strong>';
+						if (savedCallsign && savedBand) {
+							saveMessage += ': <strong>' + escapeNoticeValue(savedCallsign) + ' on ' + escapeNoticeValue(savedBand) + '</strong>';
+						} else if (savedCallsign) {
+							saveMessage += ': <strong>' + escapeNoticeValue(savedCallsign) + '</strong>';
+						} else if (savedBand) {
+							saveMessage += ': <strong>on ' + escapeNoticeValue(savedBand) + '</strong>';
 						}
 
 						var qsoFormElement = document.getElementById('qso_input');
