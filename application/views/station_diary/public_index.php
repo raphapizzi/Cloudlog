@@ -334,7 +334,7 @@
 		</div>
 	</div>
 
-	<div class="qso-summary-container">
+	<div class="qso-summary-container" id="qso-summary-<?php echo (int)$entry->id; ?>">
 										<?php if (!empty($entry->qso_summary['highlight_dx'])) { ?>
 											<div class="alert alert-info mb-3">
 												<div class="small mb-1"><strong>Highlight DX:</strong></div>
@@ -346,38 +346,49 @@
 											</div>
 										<?php } ?>
 										
-									<?php if (!empty($entry->qso_list)) { ?>
-										<?php
-										$entryDate = date('Y-m-d', strtotime($entry->created_at));
-										$mapDateFrom = !empty($entry->qso_date_start) ? $entry->qso_date_start : $entryDate;
-										$mapDateTo = !empty($entry->qso_date_end) ? $entry->qso_date_end : $entryDate;
-										$mapLogbookId = !empty($entry->logbook_id) ? (int)$entry->logbook_id : 0;
-										$mapSatOnly = (int)($entry->qso_satellite_only ?? 0) === 1 ? '1' : '0';
-										?>
-										
-										<div class="mb-2">
-											<button type="button" class="btn btn-sm btn-outline-primary no-print me-2" onclick="toggleQsoMap(<?php echo (int)$entry->id; ?>, '<?php echo htmlspecialchars($mapDateFrom, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($mapDateTo, ENT_QUOTES); ?>', <?php echo $mapLogbookId; ?>, '<?php echo $mapSatOnly; ?>')">
-												<i class="fas fa-map-marked-alt me-1"></i><span id="map-toggle-text-<?php echo (int)$entry->id; ?>">Show QSO Map</span>
-											</button>
-										</div>
-										
-										<div id="qso-map-<?php echo (int)$entry->id; ?>" class="mb-3" style="display: none; width: 100%; height: 450px; border: 1px solid #ddd; border-radius: 4px;"></div>
-										
-										<details class="mt-2">
-											<summary class="fw-bold" style="cursor: pointer; color: #2f4f73;">View QSO List (<span class="qso-count"><?php echo count($entry->qso_list); ?></span> contacts)</summary>
-											<div class="table-responsive mt-2">
-												<table class="table table-sm table-striped">
-													<thead>
-														<tr>
-															<th>Date/Time</th>
-															<th>Call</th>
-															<th>Band</th>
-															<th>Mode</th>
-															<th>Country</th>
-															<th>Grid</th>
-														</tr>
-													</thead>
-													<tbody class="qso-table-body">
+									<?php
+									$entryDate = date('Y-m-d', strtotime($entry->created_at));
+									$mapDateFrom = !empty($entry->qso_date_start) ? $entry->qso_date_start : $entryDate;
+									$mapDateTo = !empty($entry->qso_date_end) ? $entry->qso_date_end : $entryDate;
+									$mapLogbookId = !empty($entry->logbook_id) ? (int)$entry->logbook_id : 0;
+									$mapSatOnly = (int)($entry->qso_satellite_only ?? 0) === 1 ? '1' : '0';
+									?>
+
+									<div class="mb-2">
+										<button type="button" class="btn btn-sm btn-outline-primary no-print me-2" onclick="toggleQsoMap(<?php echo (int)$entry->id; ?>, '<?php echo htmlspecialchars($mapDateFrom, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($mapDateTo, ENT_QUOTES); ?>', <?php echo $mapLogbookId; ?>, '<?php echo $mapSatOnly; ?>')">
+											<i class="fas fa-map-marked-alt me-1"></i><span id="map-toggle-text-<?php echo (int)$entry->id; ?>">Show QSO Map</span>
+										</button>
+									</div>
+
+									<div id="qso-map-<?php echo (int)$entry->id; ?>" class="mb-3" style="display: none; width: 100%; height: 450px; border: 1px solid #ddd; border-radius: 4px;"></div>
+
+									<?php
+									$qsoCount = !empty($entry->qso_list) ? count($entry->qso_list) : 0;
+									$lazyClass = (!empty($defer_qso_list) && empty($is_single_entry) && $qsoCount === 0) ? ' qso-list-lazy' : '';
+									?>
+									<details class="mt-2<?php echo $lazyClass; ?>"
+										data-entry-id="<?php echo (int)$entry->id; ?>"
+										data-callsign="<?php echo htmlspecialchars($callsign, ENT_QUOTES); ?>"
+										data-start-date="<?php echo htmlspecialchars($mapDateFrom, ENT_QUOTES); ?>"
+										data-end-date="<?php echo htmlspecialchars($mapDateTo, ENT_QUOTES); ?>"
+										data-logbook-id="<?php echo (int)$mapLogbookId; ?>"
+										data-sat-only="<?php echo htmlspecialchars($mapSatOnly, ENT_QUOTES); ?>"
+										data-loaded="<?php echo $qsoCount > 0 ? '1' : '0'; ?>">
+										<summary class="fw-bold" style="cursor: pointer; color: #2f4f73;">View QSO List (<span class="qso-count"><?php echo $qsoCount; ?></span> contacts)</summary>
+										<div class="table-responsive mt-2">
+											<table class="table table-sm table-striped">
+												<thead>
+													<tr>
+														<th>Date/Time</th>
+														<th>Call</th>
+														<th>Band</th>
+														<th>Mode</th>
+														<th>Country</th>
+														<th>Grid</th>
+													</tr>
+												</thead>
+												<tbody class="qso-table-body">
+													<?php if (!empty($entry->qso_list)) { ?>
 														<?php foreach ($entry->qso_list as $qso) { ?>
 															<tr>
 																<td><?php echo date($publicQsoDateTimeFormat, strtotime($qso->COL_TIME_ON)); ?></td>
@@ -396,11 +407,13 @@
 																<td><?php echo htmlspecialchars($qso->COL_GRIDSQUARE ?? '-', ENT_QUOTES); ?></td>
 															</tr>
 														<?php } ?>
-													</tbody>
-												</table>
-											</div>
-										</details>
-									<?php } ?>
+													<?php } elseif (!empty($defer_qso_list) && empty($is_single_entry)) { ?>
+														<tr><td colspan="6" class="text-center text-muted">Expand to load QSO list...</td></tr>
+													<?php } ?>
+												</tbody>
+											</table>
+										</div>
+									</details>
 								</div>
 								<?php } ?>
 
@@ -469,6 +482,99 @@
 	</div>
 
 	<script>
+		function escapeHtml(text) {
+			return (text || '').toString()
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+		}
+
+		function formatQsoDateTime(dateValue) {
+			const date = new Date(dateValue);
+			if (isNaN(date.getTime())) {
+				return dateValue || '';
+			}
+			const dateStr = date.toLocaleDateString('en-GB');
+			const timeStr = date.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+			return `${dateStr} ${timeStr}`;
+		}
+
+		function renderQsoRows(tbody, qsos) {
+			if (!tbody) {
+				return;
+			}
+
+			if (!qsos || qsos.length === 0) {
+				tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No QSOs match the selected filters</td></tr>';
+				return;
+			}
+
+			tbody.innerHTML = qsos.map(qso => {
+				const isSatelliteQso = ((qso.COL_PROP_MODE || '').toUpperCase() === 'SAT') || !!qso.COL_SAT_NAME;
+				const bandOrSatellite = isSatelliteQso ? (qso.COL_SAT_NAME || 'SAT') : (qso.COL_BAND || '-');
+				return `<tr><td>${escapeHtml(formatQsoDateTime(qso.COL_TIME_ON))}</td><td><strong>${escapeHtml(qso.COL_CALL)}</strong></td><td>${escapeHtml(bandOrSatellite)}</td><td>${escapeHtml((qso.COL_SUBMODE || qso.COL_MODE) || '-')}</td><td>${escapeHtml(qso.COL_COUNTRY || '-')}</td><td>${escapeHtml(qso.COL_GRIDSQUARE || qso.COL_VUCC_GRIDS || '-')}</td></tr>`;
+			}).join('');
+		}
+
+		document.querySelectorAll('details.qso-list-lazy').forEach(detailsEl => {
+			detailsEl.addEventListener('toggle', function() {
+				if (!detailsEl.open) {
+					return;
+				}
+
+				if (detailsEl.dataset.loaded === '1') {
+					return;
+				}
+
+				const tbody = detailsEl.querySelector('.qso-table-body');
+				const countEl = detailsEl.querySelector('.qso-count');
+				if (tbody) {
+					tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Loading QSO list...</td></tr>';
+				}
+
+				const formData = new URLSearchParams();
+				formData.append('callsign', detailsEl.dataset.callsign || '');
+				formData.append('entry_id', detailsEl.dataset.entryId || '0');
+				formData.append('start_date', detailsEl.dataset.startDate || '');
+				formData.append('end_date', detailsEl.dataset.endDate || '');
+				formData.append('logbook_id', detailsEl.dataset.logbookId || '0');
+				formData.append('sat_only', detailsEl.dataset.satOnly || '0');
+				
+				fetch('<?php echo site_url('stationdiary/get_filtered_qsos'); ?>', {
+					method: 'POST',
+					headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+					body: formData.toString()
+				})
+				.then(r => r.json())
+				.then(data => {
+					if (!data || !data.success) {
+						throw new Error((data && data.message) ? data.message : 'Unable to load QSO list');
+					}
+
+					renderQsoRows(tbody, data.qso_list || []);
+					detailsEl.dataset.loaded = '1';
+					if (countEl) {
+						countEl.textContent = (data.qso_list || []).length;
+					}
+
+					const container = document.querySelector(`#qso-summary-${detailsEl.dataset.entryId}`);
+					if (container && data.highlight_dx) {
+						const dxCall = container.querySelector('.highlight-dx-call');
+						const dxCountry = container.querySelector('.highlight-dx-country');
+						const dxDistance = container.querySelector('.highlight-dx-distance');
+						if (dxCall) dxCall.textContent = data.highlight_dx.COL_CALL || '-';
+						if (dxCountry) dxCountry.textContent = data.highlight_dx.COL_COUNTRY || '-';
+						if (dxDistance) dxDistance.textContent = parseInt(data.highlight_dx.COL_DISTANCE || 0, 10);
+					}
+				})
+				.catch(() => {
+					if (tbody) {
+						tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Unable to load QSO list</td></tr>';
+					}
+				});
+			});
+		});
+
 		document.querySelectorAll('.qso-date-filter, .qso-satellite-filter').forEach(el => {
 			el.addEventListener('change', function() {
 				const entryId = this.dataset.entryId;
@@ -508,20 +614,7 @@
 						if (countEl) countEl.textContent = data.qso_list.length;
 						
 						const tbody = container.querySelector('.qso-table-body');
-						if (tbody && data.qso_list.length > 0) {
-							tbody.innerHTML = data.qso_list.map(qso => {
-								const qsoDate = new Date(qso.COL_TIME_ON);
-								const dateStr = qsoDate.toLocaleDateString('en-GB');
-								const timeStr = qsoDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
-								const dateTimeStr = `${dateStr} ${timeStr}`;
-													const isSatelliteQso = ((qso.COL_PROP_MODE || '').toUpperCase() === 'SAT') || !!qso.COL_SAT_NAME;
-													const bandOrSatellite = isSatelliteQso ? (qso.COL_SAT_NAME || 'SAT') : (qso.COL_BAND || '-');
-								const ent = (text) => (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-													return `<tr><td>${dateTimeStr}</td><td><strong>${ent(qso.COL_CALL)}</strong></td><td>${ent(bandOrSatellite)}</td><td>${ent((qso.COL_SUBMODE || qso.COL_MODE) || '-')}</td><td>${ent(qso.COL_COUNTRY || '-')}</td><td>${ent(qso.COL_GRIDSQUARE || qso.COL_VUCC_GRIDS || '-')}</td></tr>`;
-							}).join('');
-						} else if (tbody) {
-							tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No QSOs match the selected filters</td></tr>';
-						}
+						renderQsoRows(tbody, data.qso_list || []);
 					}
 				})
 				.catch(e => console.error('Filter error:', e));

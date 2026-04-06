@@ -70,7 +70,7 @@ class Stationdiary extends CI_Controller {
 		$cleanCallsign = strtoupper($resolution['callsign']);
 		$pageOffset = is_numeric($offset) ? (int)$offset : 0;
 		$cacheVersion = $this->note->get_public_diary_cache_version($user_id);
-		$renderVersion = 'public_diary_render_v2';
+		$renderVersion = 'public_diary_render_v5';
 		$cacheKey = 'public_station_diary_' . md5($cleanCallsign . '_' . $pageOffset . '_' . $cacheVersion . '_' . $renderVersion);
 
 		$cachedHtml = $this->cache->get($cacheKey);
@@ -110,12 +110,13 @@ class Stationdiary extends CI_Controller {
 		$this->pagination->initialize($config);
 
 		$data['callsign'] = $cleanCallsign;
-		$data['entries'] = $this->note->get_public_station_diary_entries($user_id, $perPage, $pageOffset);
+		$data['entries'] = $this->note->get_public_station_diary_entries($user_id, $perPage, $pageOffset, FALSE);
 		$data['pagination_links'] = $this->pagination->create_links();
 		$data['page_title'] = 'Station Diary - ' . $cleanCallsign;
 		$data['rss_url'] = site_url('station-diary/' . rawurlencode($cleanCallsign) . '/rss');
 		$data['qso_datetime_format'] = $this->get_public_qso_datetime_format($resolution['user_date_format'] ?? NULL);
 		$data['is_single_entry'] = false;
+		$data['defer_qso_list'] = true;
 		$data['current_entry_permalink'] = '';
 
 		$html = $this->load->view('station_diary/public_index', $data, TRUE);
@@ -192,6 +193,7 @@ class Stationdiary extends CI_Controller {
 		$data['rss_url'] = site_url('station-diary/' . rawurlencode($cleanCallsign) . '/rss');
 		$data['qso_datetime_format'] = $this->get_public_qso_datetime_format($resolution['user_date_format'] ?? NULL);
 		$data['is_single_entry'] = true;
+		$data['defer_qso_list'] = false;
 		$data['current_entry_permalink'] = site_url('station-diary/' . rawurlencode($cleanCallsign) . '/entry/' . (int)$entry->id);
 		$data['entry_reaction_totals'] = $entryReactionTotals;
 		$data['visitor_reaction'] = null;
@@ -247,7 +249,11 @@ class Stationdiary extends CI_Controller {
 			return;
 		}
 
-		$this->note->invalidate_public_diary_cache_for_note($entryId, $user_id);
+		$cleanCallsign = strtoupper($resolution['callsign']);
+		$cacheVersion = $this->note->get_public_diary_cache_version($user_id);
+		$renderVersion = 'public_diary_render_v4';
+		$entryCacheKey = 'public_station_diary_entry_' . md5($cleanCallsign . '_' . $entryId . '_' . $cacheVersion . '_' . $renderVersion);
+		$this->cache->delete($entryCacheKey);
 
 		$totals = $this->note->get_station_diary_reaction_totals($entryId);
 		$visitorReaction = $this->note->get_station_diary_visitor_reaction($entryId, $visitorHash);
@@ -256,6 +262,67 @@ class Stationdiary extends CI_Controller {
 			'success' => true,
 			'totals' => $totals,
 			'visitor_reaction' => $visitorReaction,
+		));
+	}
+
+	public function get_filtered_qsos()
+	{
+		$this->output->set_content_type('application/json');
+
+		if (strtolower($this->input->method()) !== 'post') {
+			echo json_encode(array('success' => false, 'message' => 'Invalid request method'));
+			return;
+		}
+
+		$callsign = $this->input->post('callsign', TRUE);
+		$entryId = (int)$this->input->post('entry_id', TRUE);
+		$startDate = trim((string)$this->input->post('start_date', TRUE));
+		$endDate = trim((string)$this->input->post('end_date', TRUE));
+		$logbookId = (int)$this->input->post('logbook_id', TRUE);
+		$satOnly = $this->input->post('sat_only', TRUE) === '1';
+
+		if ($this->security->xss_clean($callsign, TRUE) === FALSE || $entryId <= 0) {
+			echo json_encode(array('success' => false, 'message' => 'Invalid request'));
+			return;
+		}
+
+		$resolution = $this->note->resolve_public_user_by_callsign($callsign);
+		if (!isset($resolution['status']) || $resolution['status'] !== 'ok') {
+			echo json_encode(array('success' => false, 'message' => 'Not found'));
+			return;
+		}
+
+		$userId = (int)$resolution['user_id'];
+		$entry = $this->note->get_public_station_diary_entry($userId, $entryId);
+		if (!$entry) {
+			echo json_encode(array('success' => false, 'message' => 'Entry not found'));
+			return;
+		}
+
+		$entryDate = date('Y-m-d', strtotime($entry->created_at));
+		if ($startDate === '') {
+			$startDate = !empty($entry->qso_date_start) ? $entry->qso_date_start : $entryDate;
+		}
+		if ($endDate === '') {
+			$endDate = !empty($entry->qso_date_end) ? $entry->qso_date_end : $entryDate;
+		}
+
+		if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
+			echo json_encode(array('success' => false, 'message' => 'Invalid date format'));
+			return;
+		}
+
+		if ($logbookId <= 0) {
+			$logbookId = !empty($entry->logbook_id) ? (int)$entry->logbook_id : 0;
+		}
+
+		$qsoSummary = $this->note->get_qso_summary_for_date_range($userId, $startDate, $endDate, $logbookId, $satOnly);
+		$qsoList = $this->note->get_qso_list_for_date_range($userId, $startDate, $endDate, $logbookId, $satOnly);
+
+		echo json_encode(array(
+			'success' => true,
+			'qso_list' => $qsoList,
+			'highlight_dx' => $qsoSummary['highlight_dx'] ?? null,
 		));
 	}
 
@@ -329,4 +396,5 @@ class Stationdiary extends CI_Controller {
 
 		// Merge and return
 		echo json_encode(array_merge($plotArray, $stationArray));
-	}}
+	}
+}

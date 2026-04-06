@@ -401,7 +401,7 @@ class Note extends CI_Model {
 		return (int)$this->db->count_all_results();
 	}
 
-	public function get_public_station_diary_entries($user_id, $limit = 10, $offset = 0) {
+	public function get_public_station_diary_entries($user_id, $limit = 10, $offset = 0, $include_qso_list = TRUE) {
 		$this->db->from('notes');
 		$this->db->where('user_id', (int)$user_id);
 		$this->db->where('cat', 'Station Diary');
@@ -419,6 +419,8 @@ class Note extends CI_Model {
 		}
 
 		$imagesMap = $this->get_diary_images($ids);
+		$qsoSummaryMemo = array();
+		$qsoListMemo = array();
 		foreach ($entries as $entry) {
 			$entry->images = isset($imagesMap[$entry->id]) ? $imagesMap[$entry->id] : array();
 			$entry->qso_summary = null;
@@ -430,14 +432,37 @@ class Note extends CI_Model {
 				$dateStart = !empty($entry->qso_date_start) ? $entry->qso_date_start : $entryDate;
 				$dateEnd = !empty($entry->qso_date_end) ? $entry->qso_date_end : $entryDate;
 				$satOnly = (int)$entry->qso_satellite_only === 1;
+				$memoKey = implode('|', array(
+					(int)$user_id,
+					(string)$dateStart,
+					(string)$dateEnd,
+					(string)($entry->logbook_id ?? ''),
+					$satOnly ? '1' : '0',
+				));
 				
 				// Use date range filtering if dates are set, otherwise fall back to single-day filtering
 				if (!empty($entry->qso_date_start) || !empty($entry->qso_date_end)) {
-					$entry->qso_summary = $this->get_qso_summary_for_date_range($user_id, $dateStart, $dateEnd, $entry->logbook_id, $satOnly);
-					$entry->qso_list = $this->get_qso_list_for_date_range($user_id, $dateStart, $dateEnd, $entry->logbook_id, $satOnly);
+					if (!array_key_exists($memoKey, $qsoSummaryMemo)) {
+						$qsoSummaryMemo[$memoKey] = $this->get_qso_summary_for_date_range($user_id, $dateStart, $dateEnd, $entry->logbook_id, $satOnly);
+					}
+					$entry->qso_summary = $qsoSummaryMemo[$memoKey];
+					if ($include_qso_list) {
+						if (!array_key_exists($memoKey, $qsoListMemo)) {
+							$qsoListMemo[$memoKey] = $this->get_qso_list_for_date_range($user_id, $dateStart, $dateEnd, $entry->logbook_id, $satOnly);
+						}
+						$entry->qso_list = $qsoListMemo[$memoKey];
+					}
 				} else {
-					$entry->qso_summary = $this->get_qso_summary_for_date($user_id, $entryDate, $entry->logbook_id);
-					$entry->qso_list = $this->get_qso_list_for_date($user_id, $entryDate, $entry->logbook_id);
+					if (!array_key_exists($memoKey, $qsoSummaryMemo)) {
+						$qsoSummaryMemo[$memoKey] = $this->get_qso_summary_for_date($user_id, $entryDate, $entry->logbook_id);
+					}
+					$entry->qso_summary = $qsoSummaryMemo[$memoKey];
+					if ($include_qso_list) {
+						if (!array_key_exists($memoKey, $qsoListMemo)) {
+							$qsoListMemo[$memoKey] = $this->get_qso_list_for_date($user_id, $entryDate, $entry->logbook_id);
+						}
+						$entry->qso_list = $qsoListMemo[$memoKey];
+					}
 				}
 			}
 		}
@@ -577,9 +602,16 @@ class Note extends CI_Model {
 	}
 
 	private function get_station_ids_for_summary($user_id, $logbook_id = NULL) {
+		static $memoized_station_ids = array();
+		$cacheKey = (int)$user_id . '|' . (string)($logbook_id === NULL ? 'null' : $logbook_id);
+		if (array_key_exists($cacheKey, $memoized_station_ids)) {
+			return $memoized_station_ids[$cacheKey];
+		}
+
 		if ($logbook_id === NULL || $logbook_id === '' || $logbook_id === 0 || $logbook_id === '0') {
 			// No logbook specified, use all user stations
-			return $this->get_user_station_ids($user_id);
+			$memoized_station_ids[$cacheKey] = $this->get_user_station_ids($user_id);
+			return $memoized_station_ids[$cacheKey];
 		}
 
 		// Get stations associated with the specified logbook
@@ -605,10 +637,24 @@ class Note extends CI_Model {
 			foreach ($verify_query->result() as $row) {
 				$verified_ids[] = (int)$row->station_id;
 			}
-			return $verified_ids;
+			$memoized_station_ids[$cacheKey] = $verified_ids;
+			return $memoized_station_ids[$cacheKey];
 		}
 
-		return $station_ids;
+		$memoized_station_ids[$cacheKey] = $station_ids;
+		return $memoized_station_ids[$cacheKey];
+	}
+
+	private function get_day_bounds($date) {
+		$start = date('Y-m-d 00:00:00', strtotime($date));
+		$end = date('Y-m-d 00:00:00', strtotime($date . ' +1 day'));
+		return array($start, $end);
+	}
+
+	private function get_date_range_bounds($start_date, $end_date) {
+		$start = date('Y-m-d 00:00:00', strtotime($start_date));
+		$end = date('Y-m-d 00:00:00', strtotime($end_date . ' +1 day'));
+		return array($start, $end);
 	}
 
 	public function get_qso_list_for_date($user_id, $date, $logbook_id = NULL) {
@@ -618,11 +664,13 @@ class Note extends CI_Model {
 		}
 
 		$table = $this->config->item('table_name');
+		list($dayStart, $dayEnd) = $this->get_day_bounds($date);
 
 		$this->db->select('COL_CALL, COL_TIME_ON, COL_BAND, COL_MODE, COL_SUBMODE, COL_COUNTRY, COL_GRIDSQUARE, COL_VUCC_GRIDS, COL_RST_SENT, COL_RST_RCVD, COL_FREQ, COL_DXCC, COL_DISTANCE, COL_PROP_MODE, COL_SAT_NAME, COL_SAT_MODE');
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON)', $date);
+		$this->db->where('COL_TIME_ON >=', $dayStart);
+		$this->db->where('COL_TIME_ON <', $dayEnd);
 		$this->db->order_by('COL_TIME_ON', 'ASC');
 		$this->db->limit(100); // Reasonable limit for public display
 
@@ -637,18 +685,21 @@ class Note extends CI_Model {
 		}
 
 		$table = $this->config->item('table_name');
+		list($dayStart, $dayEnd) = $this->get_day_bounds($date);
 
 		$this->db->select('COUNT(*) AS total_qsos, COUNT(DISTINCT COL_DXCC) AS dxcc_worked');
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON)', $date);
+		$this->db->where('COL_TIME_ON >=', $dayStart);
+		$this->db->where('COL_TIME_ON <', $dayEnd);
 		$overview = $this->db->get()->row();
 
 		$this->db->distinct();
 	$this->db->select('LOWER(COL_BAND) AS band, COL_BAND+0 AS band_num', FALSE);
 	$this->db->from($table);
 	$this->db->where_in('station_id', $station_ids);
-	$this->db->where('DATE(COL_TIME_ON)', $date);
+	$this->db->where('COL_TIME_ON >=', $dayStart);
+	$this->db->where('COL_TIME_ON <', $dayEnd);
 	$this->db->where('COL_BAND IS NOT NULL', null, FALSE);
 	$this->db->where('COL_BAND !=', '');
 	$this->db->order_by('band_num', 'ASC');
@@ -658,7 +709,8 @@ class Note extends CI_Model {
 		$this->db->select('(CASE WHEN COL_SUBMODE IS NOT NULL AND COL_SUBMODE != "" THEN UPPER(COL_SUBMODE) ELSE UPPER(COL_MODE) END) AS mode_label', FALSE);
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON)', $date);
+		$this->db->where('COL_TIME_ON >=', $dayStart);
+		$this->db->where('COL_TIME_ON <', $dayEnd);
 		$this->db->where('COL_MODE IS NOT NULL', null, FALSE);
 		$this->db->where('COL_MODE !=', '');
 		$this->db->order_by('mode_label', 'ASC');
@@ -670,7 +722,8 @@ class Note extends CI_Model {
 		$this->db->from($table . ' t');
 		$this->db->join('station_profile sp', 'sp.station_id = t.station_id', 'left');
 		$this->db->where_in('t.station_id', $station_ids);
-		$this->db->where('DATE(t.COL_TIME_ON)', $date);
+		$this->db->where('t.COL_TIME_ON >=', $dayStart);
+		$this->db->where('t.COL_TIME_ON <', $dayEnd);
 		$this->db->group_start();
 			$this->db->where('t.COL_DISTANCE >', 0);
 			$this->db->or_group_start();
@@ -798,12 +851,13 @@ class Note extends CI_Model {
 		}
 
 		$table = $this->config->item('table_name');
+		list($rangeStart, $rangeEnd) = $this->get_date_range_bounds($start_date, $end_date);
 
 		$this->db->select('COL_CALL, COL_TIME_ON, COL_BAND, COL_MODE, COL_SUBMODE, COL_COUNTRY, COL_GRIDSQUARE, COL_VUCC_GRIDS, COL_RST_SENT, COL_RST_RCVD, COL_FREQ, COL_DXCC, COL_DISTANCE, COL_PROP_MODE, COL_SAT_NAME, COL_SAT_MODE');
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON) >=', $start_date);
-		$this->db->where('DATE(COL_TIME_ON) <=', $end_date);
+		$this->db->where('COL_TIME_ON >=', $rangeStart);
+		$this->db->where('COL_TIME_ON <', $rangeEnd);
 		
 		if ($sat_only) {
 			$this->db->where('COL_PROP_MODE', 'SAT');
@@ -823,12 +877,13 @@ class Note extends CI_Model {
 		}
 
 		$table = $this->config->item('table_name');
+		list($rangeStart, $rangeEnd) = $this->get_date_range_bounds($start_date, $end_date);
 
 		$this->db->select('COUNT(*) AS total_qsos, COUNT(DISTINCT COL_DXCC) AS dxcc_worked');
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON) >=', $start_date);
-		$this->db->where('DATE(COL_TIME_ON) <=', $end_date);
+		$this->db->where('COL_TIME_ON >=', $rangeStart);
+		$this->db->where('COL_TIME_ON <', $rangeEnd);
 		
 		if ($sat_only) {
 			$this->db->where('COL_PROP_MODE', 'SAT');
@@ -841,8 +896,8 @@ class Note extends CI_Model {
 		$this->db->select('LOWER(COL_BAND) AS band, COL_BAND+0 AS band_num', FALSE);
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON) >=', $start_date);
-		$this->db->where('DATE(COL_TIME_ON) <=', $end_date);
+		$this->db->where('COL_TIME_ON >=', $rangeStart);
+		$this->db->where('COL_TIME_ON <', $rangeEnd);
 		$this->db->where('COL_BAND IS NOT NULL', null, FALSE);
 		$this->db->where('COL_BAND !=', '');
 		
@@ -858,8 +913,8 @@ class Note extends CI_Model {
 		$this->db->select('(CASE WHEN COL_SUBMODE IS NOT NULL AND COL_SUBMODE != "" THEN UPPER(COL_SUBMODE) ELSE UPPER(COL_MODE) END) AS mode_label', FALSE);
 		$this->db->from($table);
 		$this->db->where_in('station_id', $station_ids);
-		$this->db->where('DATE(COL_TIME_ON) >=', $start_date);
-		$this->db->where('DATE(COL_TIME_ON) <=', $end_date);
+		$this->db->where('COL_TIME_ON >=', $rangeStart);
+		$this->db->where('COL_TIME_ON <', $rangeEnd);
 		$this->db->where('COL_MODE IS NOT NULL', null, FALSE);
 		$this->db->where('COL_MODE !=', '');
 		
@@ -876,8 +931,8 @@ class Note extends CI_Model {
 		$this->db->from($table . ' t');
 		$this->db->join('station_profile sp', 'sp.station_id = t.station_id', 'left');
 		$this->db->where_in('t.station_id', $station_ids);
-		$this->db->where('DATE(t.COL_TIME_ON) >=', $start_date);
-		$this->db->where('DATE(t.COL_TIME_ON) <=', $end_date);
+		$this->db->where('t.COL_TIME_ON >=', $rangeStart);
+		$this->db->where('t.COL_TIME_ON <', $rangeEnd);
 
 		if ($sat_only) {
 			$this->db->where('t.COL_PROP_MODE', 'SAT');
