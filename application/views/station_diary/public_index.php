@@ -374,7 +374,7 @@
 										data-logbook-id="<?php echo (int)$mapLogbookId; ?>"
 										data-sat-only="<?php echo htmlspecialchars($mapSatOnly, ENT_QUOTES); ?>"
 										data-loaded="<?php echo $qsoCount > 0 ? '1' : '0'; ?>">
-										<summary class="fw-bold" style="cursor: pointer; color: #2f4f73;">View QSO List (<span class="qso-count"><?php echo $qsoCount; ?></span> contacts)</summary>
+										<summary class="fw-bold" style="cursor: pointer; color: #2f4f73;">View QSO List</summary>
 										<div class="table-responsive mt-2">
 											<table class="table table-sm table-striped">
 												<thead>
