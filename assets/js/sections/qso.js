@@ -846,6 +846,18 @@ function resetSubmissionState() {
 	}
 }
 
+function clearSatelliteFields() {
+	$('#sat_name').val('');
+	$('#sat_mode').val('');
+	$('.satellite_modes_list').find('option').remove().end();
+	selected_sat = '';
+	selected_sat_mode = '';
+
+	if ($('#selectPropagation').val() === 'SAT') {
+		$('#selectPropagation').val('');
+	}
+}
+
 /* Function: reset_fields is used to reset the fields on the QSO page */
 function reset_fields() {
 	// Reset submission state
@@ -896,6 +908,8 @@ function reset_fields() {
 	$select = $('#stationCntyInput').selectize();
 	selectize = $select[0] ? $select[0].selectize : null;
 	if (selectize) selectize.clear();
+
+	clearSatelliteFields();
 
 	mymap.setView(pos, 12);
 	mymap.removeLayer(markers);
@@ -1195,6 +1209,7 @@ function resetToPreviousContactsTab() {
 // Reset to Previous Contacts tab when form is reset
 $('#qso_input').on('reset', function() {
 	setTimeout(function() {
+		reset_fields();
 		resetToPreviousContactsTab();
 	}, 100);
 });

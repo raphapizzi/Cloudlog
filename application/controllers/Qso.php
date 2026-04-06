@@ -122,6 +122,12 @@ class QSO extends CI_Controller {
 				'operator_callsign' => $this->input->post('operator_callsign'),
 				'transmit_power' => $this->input->post('transmit_power')
 			);
+
+            $propMode = strtoupper(trim((string)($qso_data['prop_mode'] ?? '')));
+            if ($propMode !== 'SAT') {
+                $qso_data['sat_name'] = '';
+                $qso_data['sat_mode'] = '';
+            }
 			// ];
 
 			setcookie("radio", $qso_data['radio'], time()+3600*24*99);
@@ -213,6 +219,12 @@ class QSO extends CI_Controller {
             'operator_callsign' => $this->input->post('operator_callsign'),
             'transmit_power' => $this->input->post('transmit_power')
         );
+
+        $propMode = strtoupper(trim((string)($qso_data['prop_mode'] ?? '')));
+        if ($propMode !== 'SAT') {
+            $qso_data['sat_name'] = '';
+            $qso_data['sat_mode'] = '';
+        }
 
         setcookie("radio", $qso_data['radio'], time() + 3600 * 24 * 99);
         setcookie("station_profile_id", $qso_data['station_profile_id'], time() + 3600 * 24 * 99);
