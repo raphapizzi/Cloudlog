@@ -940,7 +940,7 @@
 
               <div id="partial_view" style="font-size: 0.95rem;"></div>
 
-              <div id="qso-last-table" hx-get="<?php echo site_url('/qso/component_past_contacts'); ?>" hx-trigger="load, every 5s">
+              <div id="qso-last-table" hx-get="<?php echo site_url('/qso/component_past_contacts'); ?>" hx-trigger="load">
 
               </div>
               <small class="mt-0.5 d-block"><?php echo lang('qso_previous_max_shown'); ?></small>

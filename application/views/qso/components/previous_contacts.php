@@ -1,4 +1,4 @@
-<div id="qso-last-table">
+<div id="qso-last-table" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . (int)$current_page); ?>" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML" hx-vals='js:{_t: Date.now()}'>
 
 <div class="table-responsive" style="font-size: 0.95rem;">
   <table class="table">

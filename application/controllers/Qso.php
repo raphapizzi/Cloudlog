@@ -823,6 +823,12 @@ class QSO extends CI_Controller {
     $data['current_page'] = $page;
     $data['limit'] = $limit;
 
+        // This endpoint is polled by HTMX and must not be cached.
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: Sat, 01 Jan 2000 00:00:00 GMT');
+
     // Load view
     $this->load->view('qso/components/previous_contacts', $data);
    }
