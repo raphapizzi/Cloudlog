@@ -1,4 +1,4 @@
-<div id="qso-last-table" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . (int)$current_page); ?>" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML" hx-vals='js:{_t: Date.now()}'>
+<div id="qso-last-table-content" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . (int)$current_page); ?>" hx-trigger="every 5s" hx-target="this" hx-swap="outerHTML" hx-vals='js:{_t: Date.now()}'>
 
 <div class="table-responsive" style="font-size: 0.95rem;">
   <table class="table">
@@ -55,7 +55,7 @@
     <!-- Previous Button -->
     <li class="page-item <?php echo ($current_page == 0) ? 'disabled' : ''; ?>">
       <?php if ($current_page > 0): ?>
-        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($current_page - 1)); ?>" hx-target="#qso-last-table" hx-swap="outerHTML">
+        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($current_page - 1)); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">
           <?php echo lang('prev'); ?>
         </a>
       <?php else: ?>
@@ -70,7 +70,7 @@
 
     if ($start_page > 0): ?>
       <li class="page-item">
-        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=0'); ?>" hx-target="#qso-last-table" hx-swap="outerHTML">1</a>
+        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=0'); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">1</a>
       </li>
       <?php if ($start_page > 1): ?>
         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -84,7 +84,7 @@
         <?php if ($current_page == $i): ?>
           <span class="page-link"><?php echo $page_num; ?></span>
         <?php else: ?>
-          <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . $i); ?>" hx-target="#qso-last-table" hx-swap="outerHTML">
+          <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . $i); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">
             <?php echo $page_num; ?>
           </a>
         <?php endif; ?>
@@ -96,7 +96,7 @@
         <li class="page-item disabled"><span class="page-link">...</span></li>
       <?php endif; ?>
       <li class="page-item">
-        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($total_pages - 1)); ?>" hx-target="#qso-last-table" hx-swap="outerHTML">
+        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($total_pages - 1)); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">
           <?php echo $total_pages; ?>
         </a>
       </li>
@@ -105,7 +105,7 @@
     <!-- Next Button -->
     <li class="page-item <?php echo ($current_page >= $total_pages - 1) ? 'disabled' : ''; ?>">
       <?php if ($current_page < $total_pages - 1): ?>
-        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($current_page + 1)); ?>" hx-target="#qso-last-table" hx-swap="outerHTML">
+        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($current_page + 1)); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">
           <?php echo lang('next'); ?>
         </a>
       <?php else: ?>
