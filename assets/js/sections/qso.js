@@ -1220,11 +1220,35 @@ function resetQsoEntryOnEscape() {
 		return;
 	}
 
+	// Capture the operating context the user currently has selected BEFORE native
+	// form reset clobbers it with server-session defaults (last logged QSO values).
+	var preBand     = $('#band').val();
+	var preMode     = $('#mode').val();
+	var preSatName  = $('#sat_name').val();
+	var preSatMode  = $('#sat_mode').val();
+	var prePropMode = $('#selectPropagation').val();
+
 	qsoForm.reset();
 	lastCallsignUpdated = '';
 	resetDefaultQSOFields();
 	resetToPreviousContactsTab();
 	$('#callsign').trigger('focus');
+
+	// The on('reset') handler runs reset_fields() + clearSatelliteFields() in 100ms.
+	// Re-apply the captured context afterwards so the user stays on the band/mode/
+	// satellite they had selected, not the one from the previous QSO session.
+	setTimeout(function() {
+		$('#band').val(preBand);
+		$('#mode').val(preMode);
+		if (preSatName) {
+			$('#sat_name').val(preSatName);
+			$('#sat_mode').val(preSatMode);
+			$('#selectPropagation').val(prePropMode || 'SAT');
+		}
+		if (typeof setRst === 'function') {
+			setRst($('#mode').val());
+		}
+	}, 150);
 }
 
 // Global ESC handling on the QSO page: reset form, return to Previous Contacts, and focus callsign.
