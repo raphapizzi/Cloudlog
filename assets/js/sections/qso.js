@@ -2,6 +2,7 @@ var lastCallsignUpdated=""
 var callsignLookupRequestId = 0;
 var isSubmitting = false;
 var lastResetCatSyncNoticeAt = 0;
+var suppressNextResetHandler = false;
 
 function hasFieldValue(value) {
 	return value !== null && value !== undefined && String(value).trim() !== "";
@@ -640,6 +641,7 @@ var favs={};
 
 						var qsoFormElement = document.getElementById('qso_input');
 						if (qsoFormElement) {
+							suppressNextResetHandler = true;
 							qsoFormElement.reset();
 						}
 
@@ -859,6 +861,10 @@ function clearSatelliteFields() {
 	}
 }
 
+function clearCatTrackedFieldState() {
+	$('#frequency, #frequency_rx, #sat_name, #sat_mode, #transmit_power, #selectPropagation, #mode').removeData('catValue');
+}
+
 /* Function: reset_fields is used to reset the fields on the QSO page */
 function reset_fields() {
 	// Reset submission state
@@ -911,6 +917,7 @@ function reset_fields() {
 	if (selectize) selectize.clear();
 
 	clearSatelliteFields();
+	clearCatTrackedFieldState();
 
 	mymap.setView(pos, 12);
 	mymap.removeLayer(markers);
@@ -1229,6 +1236,11 @@ function syncFromSelectedRadioAfterReset() {
 
 // Reset to Previous Contacts tab when form is reset
 $('#qso_input').on('reset', function() {
+	if (suppressNextResetHandler) {
+		suppressNextResetHandler = false;
+		return;
+	}
+
 	setTimeout(function() {
 		reset_fields();
 		resetToPreviousContactsTab();
