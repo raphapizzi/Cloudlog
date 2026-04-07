@@ -2093,6 +2093,10 @@ $(document).ready(function() {
     </script>
 
     <script>
+        let catRequestCounter = 0;
+        let lastProcessedCatRequest = 0;
+        let catSelectionContextVersion = 0;
+
         // Helper function to update a UI element with CAT data
         const cat2UI = (ui, cat, allowEmpty = true, allowZero = true, callbackOnUpdate) => {
             if (
@@ -2111,7 +2115,24 @@ $(document).ready(function() {
         const updateFromCAT = (radioID) => {
             if (radioID === '0') return;
 
-            $.getJSON(`radio/json/${radioID}`, (data) => {
+            const requestedRadioID = String(radioID);
+            const requestId = ++catRequestCounter;
+            const requestContextVersion = catSelectionContextVersion;
+
+            $.getJSON(`radio/json/${requestedRadioID}`, (data) => {
+                const currentSelectedRadioID = String($('select.radios option:selected').val() || '0');
+
+                // Ignore stale CAT responses when radio selection changed or newer requests have already been applied.
+                if (
+                    requestContextVersion !== catSelectionContextVersion ||
+                    currentSelectedRadioID !== requestedRadioID ||
+                    requestId < lastProcessedCatRequest
+                ) {
+                    return;
+                }
+
+                lastProcessedCatRequest = requestId;
+
                 if (data.error) {
                     if (data.error === 'not_logged_in') {
                         handleLoginError();
@@ -2252,6 +2273,7 @@ $(document).ready(function() {
 
             // Trigger updateFromCAT when any <select> with class 'radios' changes
             $('.radios').on('change', function() {
+                catSelectionContextVersion++;
                 const selectedRadioID = $(this).val();
                 if (selectedRadioID === '0') {
                     resetUI();

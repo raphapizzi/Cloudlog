@@ -1,6 +1,7 @@
 var lastCallsignUpdated=""
 var callsignLookupRequestId = 0;
 var isSubmitting = false;
+var lastResetCatSyncNoticeAt = 0;
 
 function hasFieldValue(value) {
 	return value !== null && value !== undefined && String(value).trim() !== "";
@@ -1206,11 +1207,32 @@ function resetToPreviousContactsTab() {
 	$('#partial_view').hide();
 }
 
+// If a radio is selected, prefer current CAT values over stale form defaults.
+function syncFromSelectedRadioAfterReset() {
+	var selectedRadioID = String($('select.radios option:selected').val() || '0');
+	if (selectedRadioID === '0') {
+		return false;
+	}
+
+	if (typeof updateFromCAT === 'function') {
+		var now = Date.now();
+		if (now - lastResetCatSyncNoticeAt > 1000) {
+			showQsoNotice('Form reset. Syncing live data from selected radio.', 'info');
+			lastResetCatSyncNoticeAt = now;
+		}
+		updateFromCAT(selectedRadioID);
+		return true;
+	}
+
+	return false;
+}
+
 // Reset to Previous Contacts tab when form is reset
 $('#qso_input').on('reset', function() {
 	setTimeout(function() {
 		reset_fields();
 		resetToPreviousContactsTab();
+		syncFromSelectedRadioAfterReset();
 	}, 100);
 });
 
@@ -1248,6 +1270,7 @@ function resetQsoEntryOnEscape() {
 		if (typeof setRst === 'function') {
 			setRst($('#mode').val());
 		}
+		syncFromSelectedRadioAfterReset();
 	}, 150);
 }
 
