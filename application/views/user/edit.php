@@ -1117,6 +1117,15 @@
 													<small class="form-text text-muted"><?php echo lang('account_leave_blank_to_keep_existing_password'); ?></small>
 												<?php } ?>
 											</div>
+
+											<hr>
+											<p class="text-muted mb-2">The "View eQSL" menu item is shown automatically when your eQSL username and password are configured.</p>
+											<div class="form-check form-switch">
+												<input name="user_menu_show_sstv_images" class="form-check-input" type="checkbox" role="switch" id="ShowSstvImagesInMenuCheck" <?php if (isset($menu_show_sstv_images) && $menu_show_sstv_images) {
+													echo 'checked';
+												} ?>>
+												<label class="form-check-label" for="ShowSstvImagesInMenuCheck">Show "View SSTV Images" in Logbook menu</label>
+											</div>
 										</div>
 									</div>
 								</div>

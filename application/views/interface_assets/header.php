@@ -68,6 +68,17 @@
 
 	<nav class="navbar navbar-expand-lg navbar-light bg-light main-nav">
 		<div class="container">
+			<?php
+			$show_eqsl_menu = (bool) $this->session->userdata('has_eqsl_credentials');
+			$show_sstv_images_setting = $this->session->userdata('user_show_sstv_images');
+			$show_sstv_menu = false;
+			if ($show_sstv_images_setting !== NULL && $show_sstv_images_setting !== '') {
+				$show_sstv_menu = filter_var($show_sstv_images_setting, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+				if ($show_sstv_menu === NULL) {
+					$show_sstv_menu = false;
+				}
+			}
+			?>
 			<a class="navbar-brand" href="<?php echo site_url(); ?>">Cloudlog</a> <?php if (ENVIRONMENT == "development") { ?><span class="badge text-bg-danger"><?php echo lang('menu_badge_developer_mode'); ?></span><?php } ?>
 
 			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
@@ -84,10 +95,14 @@
 							<a class="dropdown-item" href="<?php echo site_url('logbookadvanced'); ?>"><i class="fas fa-book-open"></i> <?php echo lang('menu_advanced'); ?></a>
 							<div class="dropdown-divider"></div>
 							<a class="dropdown-item" href="<?php echo site_url('qsl'); ?>" title="QSL"><i class="fas fa-envelope"></i> <?php echo lang('menu_view_qsl'); ?></a>
-							<div class="dropdown-divider"></div>
-							<a class="dropdown-item" href="<?php echo site_url('eqsl'); ?>" title="eQSL"><i class="fas fa-at"></i> <?php echo lang('menu_view_eqsl'); ?></a>
-							<div class="dropdown-divider"></div>
-							<a class="dropdown-item" href="<?php echo site_url('sstv'); ?>" title="SSTV"><i class="fa fa-image"></i> <?php echo lang('menu_view_sstv'); ?></a>
+							<?php if ($show_eqsl_menu) { ?>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" href="<?php echo site_url('eqsl'); ?>" title="eQSL"><i class="fas fa-at"></i> <?php echo lang('menu_view_eqsl'); ?></a>
+							<?php } ?>
+							<?php if ($show_sstv_menu) { ?>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" href="<?php echo site_url('sstv'); ?>" title="SSTV"><i class="fa fa-image"></i> <?php echo lang('menu_view_sstv'); ?></a>
+							<?php } ?>
 						</div>
 					</li>
 
