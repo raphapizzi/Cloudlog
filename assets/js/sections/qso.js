@@ -646,6 +646,9 @@ var favs={};
 						}
 
 						reset_fields();
+						if (document.getElementById('qsp-tab')) {
+							new bootstrap.Tab(document.getElementById('qsp-tab')).show();
+						}
 						reapplyPostSaveDefaults(postSaveDefaults);
 						showQsoNotice(saveMessage, 'info');
 
@@ -880,13 +883,17 @@ function reset_fields() {
 	$('#qrz_info').text("");
 	$('#hamqth_info').text("");
 	$('#sota_info').text("");
+	$('#wwff_info').html('').attr('title', '');
+	$('#pota_info').html('').attr('title', '');
 	$('#dxcc_id').val("").trigger('change');
 	$('#cqz').val("");
 	$('#name').val("");
 	$('#qth').val("");
 	$('#locator').val("");
 	$('#iota_ref').val("");
-	$('#sota_ref').val("");
+	$select = $('#sota_ref').selectize();
+	selectize = $select[0] ? $select[0].selectize : null;
+	if (selectize) selectize.clear();
 	$("#locator").removeClass("confirmedGrid");
 	$("#locator").removeClass("workedGrid");
 	$("#locator").removeClass("newGrid");
