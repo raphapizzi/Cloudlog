@@ -657,6 +657,103 @@ class Note extends CI_Model {
 		return array($start, $end);
 	}
 
+	private function get_primary_qso_grid($candidate) {
+		$grid = strtoupper(trim((string)($candidate->COL_GRIDSQUARE ?? '')));
+		if ($grid !== '') {
+			return $grid;
+		}
+
+		$vuccGrids = strtoupper(trim((string)($candidate->COL_VUCC_GRIDS ?? '')));
+		if ($vuccGrids === '') {
+			return '';
+		}
+
+		$parts = explode(',', $vuccGrids);
+		foreach ($parts as $part) {
+			$part = trim($part);
+			if ($part !== '') {
+				return $part;
+			}
+		}
+
+		return '';
+	}
+
+	private function get_dxcc_coordinates_for_candidate($candidate, &$dxccLookupCache) {
+		$dxccLat = $candidate->dxcc_lat ?? null;
+		$dxccLong = $candidate->dxcc_long ?? null;
+
+		if (is_numeric($dxccLat) && is_numeric($dxccLong)) {
+			return array((float)$dxccLat, (float)$dxccLong);
+		}
+
+		$call = strtoupper(trim((string)($candidate->COL_CALL ?? '')));
+		if ($call === '') {
+			return array(null, null);
+		}
+
+		$date = date('Ymd');
+		if (!empty($candidate->COL_TIME_ON)) {
+			$timestamp = strtotime($candidate->COL_TIME_ON);
+			if ($timestamp !== FALSE) {
+				$date = date('Ymd', $timestamp);
+			}
+		}
+
+		$cacheKey = $call . '|' . $date;
+		if (!array_key_exists($cacheKey, $dxccLookupCache)) {
+			$this->load->model('logbook_model');
+			$lookup = $this->logbook_model->dxcc_lookup($call, $date);
+			if (is_array($lookup) && isset($lookup['lat'], $lookup['long']) && is_numeric($lookup['lat']) && is_numeric($lookup['long'])) {
+				$dxccLookupCache[$cacheKey] = array((float)$lookup['lat'], (float)$lookup['long']);
+			} else {
+				$dxccLookupCache[$cacheKey] = array(null, null);
+			}
+		}
+
+		return $dxccLookupCache[$cacheKey];
+	}
+
+	private function resolve_highlight_candidate_distance_km($candidate, &$dxccLookupCache) {
+		$stationGrid = trim((string)($candidate->station_gridsquare ?? ''));
+
+		if ($stationGrid !== '') {
+			$workedGrid = $this->get_primary_qso_grid($candidate);
+			if ($workedGrid !== '') {
+				return (float)$this->qra->distance($stationGrid, $workedGrid, 'K');
+			}
+
+			list($dxccLat, $dxccLong) = $this->get_dxcc_coordinates_for_candidate($candidate, $dxccLookupCache);
+			if ($dxccLat !== null && $dxccLong !== null) {
+				$stationCoords = $this->qra->qra2latlong($stationGrid);
+				if (is_array($stationCoords) && isset($stationCoords[0], $stationCoords[1]) && is_numeric($stationCoords[0]) && is_numeric($stationCoords[1])) {
+					return (float)distance((float)$stationCoords[0], (float)$stationCoords[1], $dxccLat, $dxccLong, 'K');
+				}
+			}
+		}
+
+		return (float)($candidate->COL_DISTANCE ?? 0);
+	}
+
+	private function build_highlight_dx_from_candidates($highlight_candidates) {
+		$highlight = null;
+		if (!empty($highlight_candidates)) {
+			$this->load->library('Qra');
+			$best_distance = 0;
+			$dxccLookupCache = array();
+			foreach ($highlight_candidates as $candidate) {
+				$dist = $this->resolve_highlight_candidate_distance_km($candidate, $dxccLookupCache);
+				if ($dist > $best_distance) {
+					$best_distance = $dist;
+					$highlight = $candidate;
+					$highlight->COL_DISTANCE = (int)round($dist);
+				}
+			}
+		}
+
+		return $highlight;
+	}
+
 	public function get_qso_list_for_date($user_id, $date, $logbook_id = NULL) {
 		$station_ids = $this->get_station_ids_for_summary($user_id, $logbook_id);
 		if (empty($station_ids)) {
@@ -716,11 +813,12 @@ class Note extends CI_Model {
 		$this->db->order_by('mode_label', 'ASC');
 		$modesResult = $this->db->get()->result();
 
-		// Get highlight DX - prefer stored distance, but also consider QSOs with a
-		// gridsquare (or VUCC grids) that have no stored distance so they are not excluded.
-		$this->db->select('t.COL_CALL, t.COL_COUNTRY, t.COL_DISTANCE, t.COL_GRIDSQUARE, t.COL_VUCC_GRIDS, sp.station_gridsquare', FALSE);
+		// Get highlight DX candidates. Distance is re-calculated in PHP using grid first,
+		// and a DXCC location fallback when worked grid is missing.
+		$this->db->select('t.COL_CALL, t.COL_COUNTRY, t.COL_TIME_ON, t.COL_DXCC, t.COL_DISTANCE, t.COL_GRIDSQUARE, t.COL_VUCC_GRIDS, sp.station_gridsquare, de.lat AS dxcc_lat, de.`long` AS dxcc_long', FALSE);
 		$this->db->from($table . ' t');
 		$this->db->join('station_profile sp', 'sp.station_id = t.station_id', 'left');
+		$this->db->join('dxcc_entities de', 'de.adif = t.COL_DXCC', 'left');
 		$this->db->where_in('t.station_id', $station_ids);
 		$this->db->where('t.COL_TIME_ON >=', $dayStart);
 		$this->db->where('t.COL_TIME_ON <', $dayEnd);
@@ -743,25 +841,7 @@ class Note extends CI_Model {
 		$this->db->limit(50);
 		$highlight_candidates = $this->db->get()->result();
 
-		$highlight = null;
-		if (!empty($highlight_candidates)) {
-			$this->load->library('Qra');
-			$best_distance = 0;
-			foreach ($highlight_candidates as $candidate) {
-				$dist = (float)($candidate->COL_DISTANCE ?? 0);
-				if ($dist <= 0 && !empty($candidate->station_gridsquare)) {
-					$grid = !empty($candidate->COL_GRIDSQUARE) ? $candidate->COL_GRIDSQUARE : ($candidate->COL_VUCC_GRIDS ?? '');
-					if (!empty($grid)) {
-						$dist = (float)$this->qra->distance($candidate->station_gridsquare, $grid, 'K');
-					}
-				}
-				if ($dist > $best_distance) {
-					$best_distance = $dist;
-					$highlight = $candidate;
-					$highlight->COL_DISTANCE = (int)round($dist);
-				}
-			}
-		}
+		$highlight = $this->build_highlight_dx_from_candidates($highlight_candidates);
 
 		$bands = array();
 		foreach ($bandsResult as $band) {
@@ -925,11 +1005,12 @@ class Note extends CI_Model {
 		$this->db->order_by('mode_label', 'ASC');
 		$modesResult = $this->db->get()->result();
 
-		// Get highlight DX - prefer stored distance, but also consider QSOs with a
-		// gridsquare (or VUCC grids) that have no stored distance so they are not excluded.
-		$this->db->select('t.COL_CALL, t.COL_COUNTRY, t.COL_DISTANCE, t.COL_GRIDSQUARE, t.COL_VUCC_GRIDS, sp.station_gridsquare', FALSE);
+		// Get highlight DX candidates. Distance is re-calculated in PHP using grid first,
+		// and a DXCC location fallback when worked grid is missing.
+		$this->db->select('t.COL_CALL, t.COL_COUNTRY, t.COL_TIME_ON, t.COL_DXCC, t.COL_DISTANCE, t.COL_GRIDSQUARE, t.COL_VUCC_GRIDS, sp.station_gridsquare, de.lat AS dxcc_lat, de.`long` AS dxcc_long', FALSE);
 		$this->db->from($table . ' t');
 		$this->db->join('station_profile sp', 'sp.station_id = t.station_id', 'left');
+		$this->db->join('dxcc_entities de', 'de.adif = t.COL_DXCC', 'left');
 		$this->db->where_in('t.station_id', $station_ids);
 		$this->db->where('t.COL_TIME_ON >=', $rangeStart);
 		$this->db->where('t.COL_TIME_ON <', $rangeEnd);
@@ -957,25 +1038,7 @@ class Note extends CI_Model {
 		$this->db->limit(50);
 		$highlight_candidates = $this->db->get()->result();
 
-		$highlight = null;
-		if (!empty($highlight_candidates)) {
-			$this->load->library('Qra');
-			$best_distance = 0;
-			foreach ($highlight_candidates as $candidate) {
-				$dist = (float)($candidate->COL_DISTANCE ?? 0);
-				if ($dist <= 0 && !empty($candidate->station_gridsquare)) {
-					$grid = !empty($candidate->COL_GRIDSQUARE) ? $candidate->COL_GRIDSQUARE : ($candidate->COL_VUCC_GRIDS ?? '');
-					if (!empty($grid)) {
-						$dist = (float)$this->qra->distance($candidate->station_gridsquare, $grid, 'K');
-					}
-				}
-				if ($dist > $best_distance) {
-					$best_distance = $dist;
-					$highlight = $candidate;
-					$highlight->COL_DISTANCE = (int)round($dist);
-				}
-			}
-		}
+		$highlight = $this->build_highlight_dx_from_candidates($highlight_candidates);
 
 		$bands = array();
 		foreach ($bandsResult as $band) {
