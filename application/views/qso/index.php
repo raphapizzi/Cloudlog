@@ -938,7 +938,7 @@
                 <div id="qso-callhistory-results"></div>
               </div>
 
-              <div id="partial_view" style="font-size: 0.95rem;"></div>
+              <div id="partial_view" style="display: none; font-size: 0.95rem;"></div>
 
               <div id="qso-last-table" hx-get="<?php echo site_url('/qso/component_past_contacts'); ?>" hx-trigger="load">
 

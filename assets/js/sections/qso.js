@@ -1193,7 +1193,17 @@ $("#callsign").focusout(function() {
 				setPreviousContactsPanelState(true);
 				/* display past QSOs */
 				$('#partial_view').html(result.partial);
-
+				// Get DXX Summary
+				getDxccResult(result.dxcc.adif, convert_case(result.dxcc.entity));
+			}
+		});
+	} else {
+		// Reset QSO fields
+		resetDefaultQSOFields();
+		// Reset tabs - go back to Previous Contacts when callsign is cleared
+		resetToPreviousContactsTab();
+	}
+})
 
 function setPreviousContactsPanelState(showLookupDetails) {
 	if (showLookupDetails) {
@@ -1207,17 +1217,6 @@ function setPreviousContactsPanelState(showLookupDetails) {
 	$('#qso-last-table').next('small').show();
 	$('#partial_view').hide();
 }
-				// Get DXX Summary
-				getDxccResult(result.dxcc.adif, convert_case(result.dxcc.entity));
-			}
-		});
-	} else {
-		// Reset QSO fields
-		resetDefaultQSOFields();
-		// Reset tabs - go back to Previous Contacts when callsign is cleared
-		resetToPreviousContactsTab();
-	}
-})
 
 // Function to reset back to Previous Contacts tab
 function resetToPreviousContactsTab() {
@@ -1245,7 +1244,7 @@ if (typeof htmx !== 'undefined' && document.body) {
 			return;
 		}
 
-		if ($('#partial_view').is(':visible')) {
+		if ($('#partial_view').is(':visible') && $('#partial_view').html().trim() !== '') {
 			setPreviousContactsPanelState(true);
 		}
 	});
