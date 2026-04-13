@@ -659,7 +659,7 @@ var favs={};
 						if (typeof htmx !== 'undefined' && document.getElementById('qso-last-table')) {
 							htmx.ajax('GET', base_url + 'index.php/qso/component_past_contacts', {
 								target: '#qso-last-table',
-								swap: 'outerHTML'
+								swap: 'innerHTML'
 							});
 						}
 
