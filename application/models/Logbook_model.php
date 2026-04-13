@@ -1639,6 +1639,74 @@ class Logbook_model extends CI_Model
     return $data;
   }
 
+  /**
+   * Get recent callsign details for a user in a single query and derive the
+   * latest non-empty value per field in PHP.
+   */
+  function get_recent_callsign_details($callsign, $user_id, $limit = 100)
+  {
+    $details = array(
+      'name' => '',
+      'gridsquare' => '',
+      'qth' => '',
+      'iota' => '',
+      'qsl_via' => '',
+      'state' => '',
+      'us_county' => null,
+    );
+
+    $this->db->select('COL_NAME, COL_GRIDSQUARE, COL_QTH, COL_IOTA, COL_QSL_VIA, COL_STATE, COL_CNTY, COL_TIME_ON');
+    $this->db->join('station_profile', 'station_profile.station_id = ' . $this->config->item('table_name') . '.station_id');
+    $this->db->where('COL_CALL', $callsign);
+    $this->db->where('station_profile.user_id', $user_id);
+    $this->db->order_by('COL_TIME_ON', 'desc');
+    $this->db->limit($limit);
+    $query = $this->db->get($this->config->item('table_name'));
+
+    if ($query->num_rows() === 0) {
+      return $details;
+    }
+
+    foreach ($query->result() as $row) {
+      if ($details['name'] === '' && !empty($row->COL_NAME)) {
+        $details['name'] = $row->COL_NAME;
+      }
+      if ($details['gridsquare'] === '' && !empty($row->COL_GRIDSQUARE)) {
+        $details['gridsquare'] = strtoupper($row->COL_GRIDSQUARE);
+      }
+      if ($details['qth'] === '' && !empty($row->COL_QTH)) {
+        $details['qth'] = $row->COL_QTH;
+      }
+      if ($details['iota'] === '' && !empty($row->COL_IOTA)) {
+        $details['iota'] = $row->COL_IOTA;
+      }
+      if ($details['qsl_via'] === '' && !empty($row->COL_QSL_VIA)) {
+        $details['qsl_via'] = $row->COL_QSL_VIA;
+      }
+      if ($details['state'] === '' && !empty($row->COL_STATE)) {
+        $details['state'] = $row->COL_STATE;
+      }
+      if ($details['us_county'] === null && !empty($row->COL_CNTY)) {
+        $county_parts = explode(',', $row->COL_CNTY, 2);
+        $details['us_county'] = isset($county_parts[1]) ? trim($county_parts[1]) : trim($county_parts[0]);
+      }
+
+      if (
+        $details['name'] !== '' &&
+        $details['gridsquare'] !== '' &&
+        $details['qth'] !== '' &&
+        $details['iota'] !== '' &&
+        $details['qsl_via'] !== '' &&
+        $details['state'] !== '' &&
+        $details['us_county'] !== null
+      ) {
+        break;
+      }
+    }
+
+    return $details;
+  }
+
   /* Callsign QRA */
   function call_qra($callsign)
   {

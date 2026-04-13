@@ -1,5 +1,7 @@
 var lastCallsignUpdated=""
 var callsignLookupRequestId = 0;
+var callsignDxccQuickRequestId = 0;
+var callsignDxccQuickTimer = null;
 var isSubmitting = false;
 var lastResetCatSyncNoticeAt = 0;
 var suppressNextResetHandler = false;
@@ -854,6 +856,26 @@ function resetSubmissionState() {
 	}
 }
 
+function resetCallsignLookupState() {
+	lastCallsignUpdated = '';
+	// Invalidate in-flight responses from older callsign lookups.
+	callsignLookupRequestId++;
+	callsignDxccQuickRequestId++;
+	if (callsignDxccQuickTimer) {
+		clearTimeout(callsignDxccQuickTimer);
+		callsignDxccQuickTimer = null;
+	}
+}
+
+function isLookupStillCurrent(requestId, find_callsign) {
+	if (requestId !== callsignLookupRequestId) {
+		return false;
+	}
+
+	var currentCallsign = $('#callsign').val().toUpperCase().replace(/\//g, "-").replace('Ø', '0');
+	return currentCallsign === find_callsign;
+}
+
 function clearSatelliteFields() {
 	$('#sat_name').val('');
 	$('#sat_mode').val('');
@@ -874,6 +896,7 @@ function clearCatTrackedFieldState() {
 function reset_fields() {
 	// Reset submission state
 	resetSubmissionState();
+	resetCallsignLookupState();
 
 	$('#locator_info').text("");
 	$('#country').val("");
@@ -1011,7 +1034,7 @@ $("#callsign").focusout(function() {
 		// Replace / in a callsign with - to stop urls breaking
 		$.getJSON(base_url + 'index.php/logbook/json/' + find_callsign + '/' + sat_type + '/' + json_band + '/' + json_mode + '/' + $('#stationProfile').val(), function(result)
 		{
-			if (requestId !== callsignLookupRequestId) {
+			if (!isLookupStillCurrent(requestId, find_callsign)) {
 				return;
 			}
 
@@ -1030,50 +1053,21 @@ $("#callsign").focusout(function() {
 				$('#country').val(convert_case(result.dxcc.entity));
 				$('#callsign_info').text(convert_case(result.dxcc.entity));
 
-				if($("#sat_name" ).val() != "") {
-					//logbook/jsonlookupgrid/io77/SAT/0/0
-					$.getJSON(base_url + 'index.php/logbook/jsonlookupcallsign/' + find_callsign + '/SAT/0/0', function(result)
-					{
-						// Reset CSS values before updating
-						$('#callsign').removeClass("workedGrid");
-						$('#callsign').removeClass("confirmedGrid");
-						$('#callsign').removeClass("newGrid");
-						$('#callsign').attr('title', '');
+				// Reset CSS values before updating
+				$('#callsign').removeClass("confirmedGrid");
+				$('#callsign').removeClass("workedGrid");
+				$('#callsign').removeClass("newGrid");
+				$('#callsign').attr('title', '');
 
-						if (result.confirmed) {
-							$('#callsign').addClass("confirmedGrid");
-							$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
-						} else if (result.workedBefore) {
-							$('#callsign').addClass("workedGrid");
-							$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
-						}
-						else
-						{
-							$('#callsign').addClass("newGrid");
-							$('#callsign').attr('title', 'New Callsign!');
-						}
-					})
+				if (result.callsignConfirmed || result.confirmed) {
+					$('#callsign').addClass("confirmedGrid");
+					$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
+				} else if (result.callsignWorkedBefore) {
+					$('#callsign').addClass("workedGrid");
+					$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
 				} else {
-					$.getJSON(base_url + 'index.php/logbook/jsonlookupcallsign/' + find_callsign + '/0/' + $("#band").val() +'/' + $("#mode").val(), function(result)
-					{
-						// Reset CSS values before updating
-						$('#callsign').removeClass("confirmedGrid");
-						$('#callsign').removeClass("workedGrid");
-						$('#callsign').removeClass("newGrid");
-						$('#callsign').attr('title', '');
-
-						if (result.confirmed) {
-							$('#callsign').addClass("confirmedGrid");
-							$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
-						} else if (result.workedBefore) {
-							$('#callsign').addClass("workedGrid");
-							$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
-						} else {
-							$('#callsign').addClass("newGrid");
-							$('#callsign').attr('title', 'New Callsign!');
-						}
-
-					})
+					$('#callsign').addClass("newGrid");
+					$('#callsign').attr('title', 'New Callsign!');
 				}
 
 				changebadge(result.dxcc.entity);
@@ -1104,6 +1098,9 @@ $("#callsign").focusout(function() {
 				var dok_selectize = $dok_select[0] ? $dok_select[0].selectize : null;
 				if (result.dxcc.adif == '230') {
 					$.get(base_url + 'index.php/lookup/dok/' + $('#callsign').val().toUpperCase(), function(result) {
+						if (!isLookupStillCurrent(requestId, find_callsign)) {
+							return;
+						}
 						if (result && dok_selectize) {
 							dok_selectize.addOption({name: result});
 							dok_selectize.setValue(result, false);
@@ -1140,7 +1137,7 @@ $("#callsign").focusout(function() {
 
 				var overwriteConflicts = getLookupOverwriteConflicts(result);
 				showLookupOverwriteModal(overwriteConflicts).then(function(approval) {
-					if (requestId !== callsignLookupRequestId) {
+					if (!isLookupStillCurrent(requestId, find_callsign)) {
 						return;
 					}
 
@@ -1320,6 +1317,8 @@ function syncFromSelectedRadioAfterReset() {
 
 // Reset to Previous Contacts tab when form is reset
 $('#qso_input').on('reset', function() {
+	resetCallsignLookupState();
+
 	if (suppressNextResetHandler) {
 		suppressNextResetHandler = false;
 		return;
@@ -1347,7 +1346,7 @@ function resetQsoEntryOnEscape() {
 	var prePropMode = $('#selectPropagation').val();
 
 	qsoForm.reset();
-	lastCallsignUpdated = '';
+	resetCallsignLookupState();
 	resetDefaultQSOFields();
 	resetToPreviousContactsTab();
 	$('#callsign').trigger('focus');
@@ -1392,7 +1391,7 @@ $(document).off('keydown.qsoEscapeReset').on('keydown.qsoEscapeReset', function(
 // Also handle when callsign is cleared (empty value entered)
 $('#callsign').on('input keyup', function() {
 	if ($(this).val() === '' && lastCallsignUpdated !== '') {
-		lastCallsignUpdated = '';
+		resetCallsignLookupState();
 		resetDefaultQSOFields();
 		resetToPreviousContactsTab();
 	}
@@ -1697,8 +1696,48 @@ $("#callsign").on("keypress", function(e) {
 	}
 });
 
+function quickLookupDxcc(callsign) {
+	if (!callsign || callsign.length < 3) {
+		return;
+	}
+
+	var requestId = ++callsignDxccQuickRequestId;
+	var find_callsign = callsign.toUpperCase().replace(/\//g, "-").replace('Ø', '0');
+
+	$.getJSON(base_url + 'index.php/logbook/jsondxcc/' + find_callsign, function(result) {
+		if (requestId !== callsignDxccQuickRequestId) {
+			return;
+		}
+
+		var currentCallsign = $('#callsign').val().toUpperCase().replace(/\//g, "-").replace('Ø', '0');
+		if (currentCallsign !== find_callsign) {
+			return;
+		}
+
+		if (result.dxcc && result.dxcc.entity !== undefined) {
+			$('#country').val(convert_case(result.dxcc.entity));
+			$('#callsign_info').text(convert_case(result.dxcc.entity));
+			changebadge(result.dxcc.entity);
+			$('#dxcc_id').val(result.dxcc.adif).trigger('change');
+			$('#cqz').val(result.dxcc.cqz);
+			$('#ituz').val(result.dxcc.ituz);
+		}
+	});
+}
+
 // On Key up check and suggest callsigns
 $("#callsign").keyup(function() {
+	if (callsignDxccQuickTimer) {
+		clearTimeout(callsignDxccQuickTimer);
+	}
+
+	var currentCall = $(this).val();
+	if (currentCall.length >= 3) {
+		callsignDxccQuickTimer = setTimeout(function() {
+			quickLookupDxcc(currentCall);
+		}, 200);
+	}
+
 	if ($(this).val().length >= 3) {
 	  $('.callsign-suggest').show();
 	  $callsign = $(this).val().replace('Ø', '0');

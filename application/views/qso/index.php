@@ -943,7 +943,6 @@
               <div id="qso-last-table" hx-get="<?php echo site_url('/qso/component_past_contacts'); ?>" hx-trigger="load">
 
               </div>
-              <small class="mt-0.5 d-block"><?php echo lang('qso_previous_max_shown'); ?></small>
             </div>
 
             <!-- DXCC Summary Tab -->

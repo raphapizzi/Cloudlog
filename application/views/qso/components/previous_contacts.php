@@ -65,17 +65,16 @@
 
     <!-- Page Numbers -->
     <?php
-    $start_page = max(0, $current_page - 2);
-    $end_page = min($total_pages - 1, $current_page + 2);
+    // Keep pagination compact: only show a sliding window near the current page.
+    $visible_pages = 7;
+    $half_window = (int) floor($visible_pages / 2);
+    $start_page = max(0, $current_page - $half_window);
+    $end_page = min($total_pages - 1, $start_page + $visible_pages - 1);
+    $start_page = max(0, $end_page - $visible_pages + 1);
 
     if ($start_page > 0): ?>
-      <li class="page-item">
-        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=0'); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">1</a>
-      </li>
-      <?php if ($start_page > 1): ?>
-        <li class="page-item disabled"><span class="page-link">...</span></li>
-      <?php endif;
-    endif;
+      <li class="page-item disabled"><span class="page-link">...</span></li>
+    <?php endif;
 
     for ($i = $start_page; $i <= $end_page; $i++):
       $page_num = $i + 1;
@@ -92,14 +91,7 @@
     <?php endfor;
 
     if ($end_page < $total_pages - 1): ?>
-      <?php if ($end_page < $total_pages - 2): ?>
-        <li class="page-item disabled"><span class="page-link">...</span></li>
-      <?php endif; ?>
-      <li class="page-item">
-        <a class="page-link" href="#" hx-get="<?php echo site_url('/qso/component_past_contacts?page=' . ($total_pages - 1)); ?>" hx-target="#qso-last-table-content" hx-swap="outerHTML">
-          <?php echo $total_pages; ?>
-        </a>
-      </li>
+      <li class="page-item disabled"><span class="page-link">...</span></li>
     <?php endif; ?>
 
     <!-- Next Button -->

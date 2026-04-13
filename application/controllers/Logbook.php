@@ -92,6 +92,30 @@ class Logbook extends CI_Controller
 		echo json_encode($return, JSON_PRETTY_PRINT);
 	}
 
+	function jsondxcc($tempcallsign)
+	{
+		$callsign = $this->security->xss_clean($tempcallsign);
+
+		$this->load->model('user_model');
+		if (!$this->user_model->authorize($this->config->item('auth_mode'))) {
+			return;
+		}
+
+		// Convert - in Callsign to / Used for URL processing
+		$callsign = str_replace("-", "/", $callsign);
+		$callsign = str_replace("Ø", "0", $callsign);
+
+		$return = [
+			"callsign" => strtoupper($callsign),
+			"dxcc" => false,
+		];
+
+		$return['dxcc'] = $this->cached_dxcc_lookup($callsign);
+
+		header('Content-Type: application/json');
+		echo json_encode($return, JSON_PRETTY_PRINT);
+	}
+
 	function json($tempcallsign, $temptype, $tempband, $tempmode, $tempstation_id = null)
 	{
 		// Cleaning for security purposes
@@ -134,17 +158,24 @@ class Logbook extends CI_Controller
 			"qsl_manager" => "",
 			"bearing" 		=> "",
 			"workedBefore" => false,
+			"callsignWorkedBefore" => false,
+			"callsignConfirmed" => false,
 			"timesWorked" => 0,
 			"lotw_member" => $lotw_member,
 			"lotw_days" => $lotw_days,
 			"image" => "",
 		];
 
-		$return['dxcc'] = $this->dxcheck($callsign);
+		$return['dxcc'] = $this->cached_dxcc_lookup($callsign);
 
 		$lookupcall = $this->get_plaincall($callsign);
 
 		$return['partial'] = $this->partial($lookupcall);
+
+		$this->load->model('logbooks_model');
+		$logbooks_locations_array = $this->logbooks_model->list_logbook_relationships($this->session->userdata('active_station_logbook'));
+		$user_default_confirmation = $this->session->userdata('user_default_confirmation');
+		$recent_details = $this->logbook_model->get_recent_callsign_details($callsign, $this->session->userdata('user_id'));
 
 		$callbook = $this->logbook_model->loadCallBook($callsign, $this->config->item('use_fullname'));
 
@@ -154,16 +185,19 @@ class Logbook extends CI_Controller
 			$measurement_base = $this->session->userdata('user_measurement_base');
 		}
 
-		$return['callsign_name'] 		= $this->nval($callbook['name'] ?? '', $this->logbook_model->call_name($callsign));
-		$return['callsign_qra'] 		= $this->nval($callbook['gridsquare'] ?? '',  $this->logbook_model->call_qra($callsign));
+		$return['callsign_name'] 		= $this->nval($callbook['name'] ?? '', $recent_details['name']);
+		$return['callsign_qra'] 		= $this->nval($callbook['gridsquare'] ?? '',  $recent_details['gridsquare']);
 		$return['callsign_distance'] 	= $this->distance($return['callsign_qra']);
-		$return['callsign_qth'] 		= $this->nval($callbook['city'] ?? '', $this->logbook_model->call_qth($callsign));
-		$return['callsign_iota'] 		= $this->nval($callbook['iota'] ?? '', $this->logbook_model->call_iota($callsign));
-		$return['qsl_manager'] 			= $this->nval($callbook['qslmgr'] ?? '', $this->logbook_model->call_qslvia($callsign));
-		$return['callsign_state'] 		= $this->nval($callbook['state'] ?? '', $this->logbook_model->call_state($callsign));
-		$return['callsign_us_county'] 	= $this->nval($callbook['us_county'] ?? '', $this->logbook_model->call_us_county($callsign));
-		$return['workedBefore'] 		= $this->worked_grid_before($return['callsign_qra'], $type, $band, $mode);
-		$return['confirmed'] 		= $this->confirmed_grid_before($return['callsign_qra'], $type, $band, $mode);
+		$return['callsign_qth'] 		= $this->nval($callbook['city'] ?? '', $recent_details['qth']);
+		$return['callsign_iota'] 		= $this->nval($callbook['iota'] ?? '', $recent_details['iota']);
+		$return['qsl_manager'] 			= $this->nval($callbook['qslmgr'] ?? '', $recent_details['qsl_via']);
+		$return['callsign_state'] 		= $this->nval($callbook['state'] ?? '', $recent_details['state']);
+		$return['callsign_us_county'] 	= $this->nval($callbook['us_county'] ?? '', $recent_details['us_county']);
+		$return['workedBefore'] 		= $this->worked_grid_before($return['callsign_qra'], $type, $band, $mode, $logbooks_locations_array);
+		$return['confirmed'] 		= $this->confirmed_grid_before($return['callsign_qra'], $type, $band, $mode, $logbooks_locations_array, $user_default_confirmation);
+		$callsign_status = $this->callsign_status($callsign, $type, $band, $mode, $logbooks_locations_array, $user_default_confirmation);
+		$return['callsignWorkedBefore'] = $callsign_status['workedBefore'];
+		$return['callsignConfirmed'] = $callsign_status['confirmed'];
 		$return['timesWorked'] 		= $this->logbook_model->times_worked($lookupcall);
 
 		if ($this->session->userdata('user_show_profile_image')) {
@@ -213,39 +247,109 @@ class Logbook extends CI_Controller
 		return (($val2 ?? "") === "" ? ($val1 ?? "") : ($val2 ?? ""));
 	}
 
-	function confirmed_grid_before($gridsquare, $type, $band, $mode)
+	private function build_confirmation_where($user_default_confirmation)
+	{
+		$extrawhere = '';
+		if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'Q') !== false) {
+			$extrawhere = "COL_QSL_RCVD='Y'";
+		}
+		if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'L') !== false) {
+			if ($extrawhere != '') {
+				$extrawhere .= " OR";
+			}
+			$extrawhere .= " COL_LOTW_QSL_RCVD='Y'";
+		}
+		if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'E') !== false) {
+			if ($extrawhere != '') {
+				$extrawhere .= " OR";
+			}
+			$extrawhere .= " COL_EQSL_QSL_RCVD='Y'";
+		}
+
+		if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'Z') !== false) {
+			if ($extrawhere != '') {
+				$extrawhere .= " OR";
+			}
+			$extrawhere .= " COL_QRZCOM_QSO_DOWNLOAD_STATUS='Y'";
+		}
+
+		return $extrawhere;
+	}
+
+	private function callsign_status($callsign, $type, $band, $mode, $logbooks_locations_array, $user_default_confirmation)
+	{
+		$return = [
+			"workedBefore" => false,
+			"confirmed" => false,
+		];
+
+		if (empty($logbooks_locations_array)) {
+			return $return;
+		}
+
+		$this->load->model('logbook_model');
+
+		if ($type == "SAT") {
+			$this->db->where('COL_PROP_MODE', 'SAT');
+		} else {
+			$this->db->where('COL_MODE', $this->logbook_model->get_main_mode_from_mode($mode));
+			$this->db->where('COL_BAND', $band);
+			$this->db->where('COL_PROP_MODE !=', 'SAT');
+		}
+		$this->db->where_in('station_id', $logbooks_locations_array);
+		$this->db->where('COL_CALL', strtoupper($callsign));
+
+		$query = $this->db->get($this->config->item('table_name'), 1, 0);
+		foreach ($query->result() as $workedBeforeRow) {
+			$return['workedBefore'] = true;
+		}
+
+		$extrawhere = $this->build_confirmation_where($user_default_confirmation);
+
+		if ($type == "SAT") {
+			$this->db->where('COL_PROP_MODE', 'SAT');
+			if ($extrawhere != '') {
+				$this->db->where('(' . $extrawhere . ')');
+			} else {
+				$this->db->where("1=0");
+			}
+		} else {
+			$this->load->model('logbook_model');
+			$this->db->where('COL_MODE', $this->logbook_model->get_main_mode_from_mode($mode));
+			$this->db->where('COL_BAND', $band);
+			$this->db->where('COL_PROP_MODE !=', 'SAT');
+			if ($extrawhere != '') {
+				$this->db->where('(' . $extrawhere . ')');
+			} else {
+				$this->db->where("1=0");
+			}
+		}
+		$this->db->where_in('station_id', $logbooks_locations_array);
+		$this->db->where('COL_CALL', strtoupper($callsign));
+
+		$query = $this->db->get($this->config->item('table_name'), 1, 0);
+		foreach ($query->result() as $workedBeforeRow) {
+			$return['confirmed'] = true;
+		}
+
+		return $return;
+	}
+
+	function confirmed_grid_before($gridsquare, $type, $band, $mode, $logbooks_locations_array = null, $user_default_confirmation = null)
 	{
 		if (strlen($gridsquare) < 4)
 			return false;
 
-		$this->load->model('logbooks_model');
-		$logbooks_locations_array = $this->logbooks_model->list_logbook_relationships($this->session->userdata('active_station_logbook'));
-		$user_default_confirmation = $this->session->userdata('user_default_confirmation');
+		if ($logbooks_locations_array === null) {
+			$this->load->model('logbooks_model');
+			$logbooks_locations_array = $this->logbooks_model->list_logbook_relationships($this->session->userdata('active_station_logbook'));
+		}
+		if ($user_default_confirmation === null) {
+			$user_default_confirmation = $this->session->userdata('user_default_confirmation');
+		}
 
 		if (!empty($logbooks_locations_array)) {
-			$extrawhere = '';
-			if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'Q') !== false) {
-				$extrawhere = "COL_QSL_RCVD='Y'";
-			}
-			if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'L') !== false) {
-				if ($extrawhere != '') {
-					$extrawhere .= " OR";
-				}
-				$extrawhere .= " COL_LOTW_QSL_RCVD='Y'";
-			}
-			if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'E') !== false) {
-				if ($extrawhere != '') {
-					$extrawhere .= " OR";
-				}
-				$extrawhere .= " COL_EQSL_QSL_RCVD='Y'";
-			}
-
-			if (isset($user_default_confirmation) && strpos($user_default_confirmation, 'Z') !== false) {
-				if ($extrawhere != '') {
-					$extrawhere .= " OR";
-				}
-				$extrawhere .= " COL_QRZCOM_QSO_DOWNLOAD_STATUS='Y'";
-			}
+			$extrawhere = $this->build_confirmation_where($user_default_confirmation);
 
 
 			if ($type == "SAT") {
@@ -283,13 +387,15 @@ class Logbook extends CI_Controller
 		return false;
 	}
 
-	function worked_grid_before($gridsquare, $type, $band, $mode)
+	function worked_grid_before($gridsquare, $type, $band, $mode, $logbooks_locations_array = null)
 	{
 		if (strlen($gridsquare) < 4)
 			return false;
 
-		$this->load->model('logbooks_model');
-		$logbooks_locations_array = $this->logbooks_model->list_logbook_relationships($this->session->userdata('active_station_logbook'));
+		if ($logbooks_locations_array === null) {
+			$this->load->model('logbooks_model');
+			$logbooks_locations_array = $this->logbooks_model->list_logbook_relationships($this->session->userdata('active_station_logbook'));
+		}
 
 		if (!empty($logbooks_locations_array)) {
 			if ($type == "SAT") {
@@ -1184,6 +1290,30 @@ class Logbook extends CI_Controller
 		}
 		$ans = $this->logbook_model->dxcc_lookup($call, $date);
 		return $ans;
+	}
+
+	private function cached_dxcc_lookup($call)
+	{
+		$normalized_call = strtoupper(trim((string)$call));
+		if ($normalized_call === '') {
+			return false;
+		}
+
+		$cache_key = 'dxcc_lookup_' . md5($normalized_call . '|' . date('Y-m-d'));
+		$cache_ttl = 3600; // 1 hour
+
+		$this->load->driver('cache', array('adapter' => 'file', 'backup' => 'file'));
+		$cached = $this->cache->get($cache_key);
+		if ($cached !== false) {
+			return $cached;
+		}
+
+		$dxcc = $this->dxcheck($normalized_call);
+		if ($dxcc !== false && $dxcc !== null) {
+			$this->cache->save($cache_key, $dxcc, $cache_ttl);
+		}
+
+		return $dxcc;
 	}
 
 	function getentity($adif)
