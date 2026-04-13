@@ -2113,7 +2113,7 @@ $(document).ready(function() {
 
         // Update UI from CAT data
         const updateFromCAT = (radioID) => {
-            if (radioID === '0') return;
+            if (!radioID || radioID === '0' || radioID === 'undefined') return;
 
             const requestedRadioID = String(radioID);
             const requestId = ++catRequestCounter;

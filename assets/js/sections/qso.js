@@ -3,6 +3,8 @@ var callsignLookupRequestId = 0;
 var isSubmitting = false;
 var lastResetCatSyncNoticeAt = 0;
 var suppressNextResetHandler = false;
+var previousContactsLookupMode = false;
+var htmxAutoRefreshTimer = null;
 
 function hasFieldValue(value) {
 	return value !== null && value !== undefined && String(value).trim() !== "";
@@ -909,7 +911,10 @@ function reset_fields() {
 	$('#callsign_info').text("");
 	$('#input_usa_state').val("");
 	$('#qso-last-table').show();
+	$('#partial_view').html('');
 	$('#partial_view').hide();
+	previousContactsLookupMode = false;
+	resumeAutoRefresh();
 	var $select = $('#wwff_ref').selectize();
 	var selectize = $select[0] ? $select[0].selectize : null;
 	if (selectize) selectize.clear();
@@ -1014,62 +1019,65 @@ $("#callsign").focusout(function() {
 			var currentCallsign = $('#callsign').val().toUpperCase().replace(/\//g, "-").replace('Ø', '0');
 			if(currentCallsign === find_callsign) {
 
-				// Reset QSO fields
-				resetDefaultQSOFields();
+			// Enter lookup mode - pause auto-refresh of logbook pagination
+			previousContactsLookupMode = true;
+			pauseAutoRefresh();
 
-				if(result.dxcc.entity != undefined) {
-					$('#country').val(convert_case(result.dxcc.entity));
-					$('#callsign_info').text(convert_case(result.dxcc.entity));
+			// Reset QSO fields
+			resetDefaultQSOFields();
 
-					if($("#sat_name" ).val() != "") {
-						//logbook/jsonlookupgrid/io77/SAT/0/0
-						$.getJSON(base_url + 'index.php/logbook/jsonlookupcallsign/' + find_callsign + '/SAT/0/0', function(result)
+			if(result.dxcc.entity != undefined) {
+				$('#country').val(convert_case(result.dxcc.entity));
+				$('#callsign_info').text(convert_case(result.dxcc.entity));
+
+				if($("#sat_name" ).val() != "") {
+					//logbook/jsonlookupgrid/io77/SAT/0/0
+					$.getJSON(base_url + 'index.php/logbook/jsonlookupcallsign/' + find_callsign + '/SAT/0/0', function(result)
+					{
+						// Reset CSS values before updating
+						$('#callsign').removeClass("workedGrid");
+						$('#callsign').removeClass("confirmedGrid");
+						$('#callsign').removeClass("newGrid");
+						$('#callsign').attr('title', '');
+
+						if (result.confirmed) {
+							$('#callsign').addClass("confirmedGrid");
+							$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
+						} else if (result.workedBefore) {
+							$('#callsign').addClass("workedGrid");
+							$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
+						}
+						else
 						{
-							// Reset CSS values before updating
-							$('#callsign').removeClass("workedGrid");
-							$('#callsign').removeClass("confirmedGrid");
-							$('#callsign').removeClass("newGrid");
-							$('#callsign').attr('title', '');
+							$('#callsign').addClass("newGrid");
+							$('#callsign').attr('title', 'New Callsign!');
+						}
+					})
+				} else {
+					$.getJSON(base_url + 'index.php/logbook/jsonlookupcallsign/' + find_callsign + '/0/' + $("#band").val() +'/' + $("#mode").val(), function(result)
+					{
+						// Reset CSS values before updating
+						$('#callsign').removeClass("confirmedGrid");
+						$('#callsign').removeClass("workedGrid");
+						$('#callsign').removeClass("newGrid");
+						$('#callsign').attr('title', '');
 
-							if (result.confirmed) {
-								$('#callsign').addClass("confirmedGrid");
-								$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
-							} else if (result.workedBefore) {
-								$('#callsign').addClass("workedGrid");
-								$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
-							}
-							else
-							{
-								$('#callsign').addClass("newGrid");
-								$('#callsign').attr('title', 'New Callsign!');
-							}
-						})
-					} else {
-						$.getJSON(base_url + 'index.php/logbook/jsonlookupcallsign/' + find_callsign + '/0/' + $("#band").val() +'/' + $("#mode").val(), function(result)
-						{
-							// Reset CSS values before updating
-							$('#callsign').removeClass("confirmedGrid");
-							$('#callsign').removeClass("workedGrid");
-							$('#callsign').removeClass("newGrid");
-							$('#callsign').attr('title', '');
+						if (result.confirmed) {
+							$('#callsign').addClass("confirmedGrid");
+							$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
+						} else if (result.workedBefore) {
+							$('#callsign').addClass("workedGrid");
+							$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
+						} else {
+							$('#callsign').addClass("newGrid");
+							$('#callsign').attr('title', 'New Callsign!');
+						}
 
-							if (result.confirmed) {
-								$('#callsign').addClass("confirmedGrid");
-								$('#callsign').attr('title', 'Callsign was already worked and confirmed in the past on this band and mode!');
-							} else if (result.workedBefore) {
-								$('#callsign').addClass("workedGrid");
-								$('#callsign').attr('title', 'Callsign was already worked in the past on this band and mode!');
-							} else {
-								$('#callsign').addClass("newGrid");
-								$('#callsign').attr('title', 'New Callsign!');
-							}
-
-						})
-					}
-
-					changebadge(result.dxcc.entity);
-
+					})
 				}
+
+				changebadge(result.dxcc.entity);
+			}
 
 				if(result.lotw_member == "active") {
 					$('#lotw_info').text("LoTW");
@@ -1191,9 +1199,20 @@ $("#callsign").focusout(function() {
 				}
 				/* display past QSOs */
 				var partialHtml = (typeof result.partial === 'string') ? result.partial : '';
-				$('#partial_view').html(partialHtml);
-				// Toggle panel state deterministically based on whether lookup returned details.
-				setPreviousContactsPanelState(partialHtml.trim() !== '');
+				
+				if (partialHtml.trim() !== '') {
+					// State 2: Callsign found in log with past QSOs
+					$('#partial_view').html(partialHtml);
+					setPreviousContactsPanelState(true);
+				} else {
+					// State 3: Callsign found but NO past QSOs in database
+					var noQsoMsg = '<div class="alert alert-info small mb-2">'
+						+ '<i class="fa fa-info-circle me-2"></i>'
+						+ 'No past QSOs with <strong>' + escapeNoticeValue(find_callsign) + '</strong>&mdash;see callbook details above.'
+						+ '</div>';
+					$('#partial_view').html(noQsoMsg);
+					setPreviousContactsPanelState(true);
+				}
 				// Get DXX Summary
 				getDxccResult(result.dxcc.adif, convert_case(result.dxcc.entity));
 			}
@@ -1206,18 +1225,41 @@ $("#callsign").focusout(function() {
 	}
 })
 
+function pauseAutoRefresh() {
+	if (typeof htmx !== 'undefined' && document.getElementById('qso-last-table-content')) {
+		var elem = document.getElementById('qso-last-table-content');
+		if (elem) {
+			elem.removeAttribute('hx-trigger');
+		}
+	}
+}
+
+function resumeAutoRefresh() {
+	if (typeof htmx !== 'undefined' && document.getElementById('qso-last-table-content')) {
+		var elem = document.getElementById('qso-last-table-content');
+		if (elem) {
+			elem.setAttribute('hx-trigger', 'every 5s');
+			htmx.process(elem);
+		}
+	}
+}
+
 function setPreviousContactsPanelState(showLookupDetails) {
 	if (showLookupDetails) {
+		// Show callsign-specific results (either QSOs found or "not found" message)
 		$('#qso-last-table').hide();
 		$('#qso-last-table').next('small').hide();
 		$('#partial_view').show();
+		previousContactsLookupMode = true;
 		return;
 	}
 
+	// Show paginated logbook (no callsign lookup active)
 	$('#qso-last-table').show();
 	$('#qso-last-table').next('small').show();
 	$('#partial_view').html('');
 	$('#partial_view').hide();
+	previousContactsLookupMode = false;
 }
 
 // Function to reset back to Previous Contacts tab
@@ -1246,7 +1288,11 @@ if (typeof htmx !== 'undefined' && document.body) {
 			return;
 		}
 
-		if ($('#partial_view').html().trim() !== '') {
+		// If we're in lookup mode, keep showing the partial_view (callsign-specific results)
+		// If we're not in lookup mode, show the main pagination table
+		if (previousContactsLookupMode) {
+			setPreviousContactsPanelState(true);
+		} else if ($('#partial_view').html().trim() !== '') {
 			setPreviousContactsPanelState(true);
 		}
 	});
