@@ -644,7 +644,8 @@
               </div>
               <?php endif; // notes_tab ?>
 
-              <?php if ($qso_fields['qsl_tab']): ?>\n              <!-- QSL Tab -->
+              <?php if ($qso_fields['qsl_tab']): ?>
+              <!-- QSL Tab -->
               <div class="tab-pane fade" id="qsl" role="tabpanel" aria-labelledby="qsl-tab">
 
                 <div class="mb-3 row">
