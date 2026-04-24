@@ -92,6 +92,7 @@
 
                     <?php } else { ?>
                         <!-- Normal email configuration form -->
+                        <?php echo form_open('options/email_save'); ?>
 
                         <div class="mb-3">
                             <label for="emailProtocol"><?php echo lang('options_outgoing_protocol'); ?></label>
