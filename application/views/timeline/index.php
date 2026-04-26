@@ -149,6 +149,16 @@
 function write_dxcc_timeline($timeline_array, $custom_date_format, $bandselect, $modeselect, $award) {
     $ci =& get_instance();
     $i = count($timeline_array);
+    
+    // Check if any DXCC entries have an end date
+    $has_end_dates = false;
+    foreach ($timeline_array as $line) {
+        if (!empty($line->end)) {
+            $has_end_dates = true;
+            break;
+        }
+    }
+    
     echo '<div class="table-responsive"><table style="width:100%" class="table table-sm timelinetable table-bordered table-hover table-striped align-middle text-center mb-0">
               <thead class="table-light">
                     <tr>
@@ -156,9 +166,11 @@ function write_dxcc_timeline($timeline_array, $custom_date_format, $bandselect, 
                         <th scope="col">Date Worked</th>
                         <th scope="col">'.$ci->lang->line('gen_hamradio_prefix').'</th>
                         <th scope="col">'.$ci->lang->line('general_word_country').'</th>
-                        <th scope="col">DXCC Status</th>
-                        <th scope="col">DXCC End Date</th>
-                        <th scope="col">'.$ci->lang->line('gridsquares_show_qsos').'</th>
+                        <th scope="col">DXCC Status</th>';
+    if ($has_end_dates) {
+        echo '<th scope="col">DXCC End Date</th>';
+    }
+    echo '<th scope="col">'.$ci->lang->line('gridsquares_show_qsos').'</th>
                     </tr>
                 </thead>
                 <tbody>';
@@ -176,9 +188,11 @@ function write_dxcc_timeline($timeline_array, $custom_date_format, $bandselect, 
         } else {
             echo '<span class="badge text-bg-success">Active</span>';
         }
-        echo '</td>
-                <td>' . $line->end . '</td>
-                <td><button type="button" class="btn btn-sm btn-outline-primary" onclick="displayTimelineContacts(\'' . $line->adif . '\',\'' . $bandselect . '\',\'' . $modeselect . '\',\'' . $award . '\')">'.$ci->lang->line('filter_options_show').'</button></td>
+        echo '</td>';
+        if ($has_end_dates) {
+            echo '<td>' . $line->end . '</td>';
+        }
+        echo '<td><button type="button" class="btn btn-sm btn-outline-primary" onclick="displayTimelineContacts(\'' . $line->adif . '\',\'' . $bandselect . '\',\'' . $modeselect . '\',\'' . $award . '\')">'.$ci->lang->line('filter_options_show').'</button></td>
                </tr>';
     }
     echo '</tbody></table></div>';
