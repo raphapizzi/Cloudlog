@@ -72,4 +72,43 @@ class Activators extends CI_Controller {
         $this->load->view('activators/details', $data);
     }
 
+    public function component_activators() {
+        // HTMX endpoint for activators table
+        $this->load->model('Activators_model');
+        $this->load->model('bands');
+
+        $band = $this->input->post('band') ?: 'All';
+        $mincount = $this->input->post('mincount') ?: 2;
+        $leogeo = $this->input->post('leogeo') ?: 'both';
+
+        $activators_array = $this->Activators_model->get_activators($band, $mincount, $leogeo);
+        $activators_vucc_array = $this->Activators_model->get_activators_vucc($band, $leogeo);
+
+        // Get Date format
+        if($this->session->userdata('user_date_format')) {
+            $custom_date_format = $this->session->userdata('user_date_format');
+        } else {
+            $custom_date_format = $this->config->item('qso_date_format');
+        }
+
+        $vucc_grids = array();
+        if ($activators_vucc_array) {
+            foreach ($activators_vucc_array as $line) {
+                $vucc_grids[$line->call] = $line->vucc_grids;
+            }
+        }
+
+        if ($activators_array) {
+            $this->load->view('activators/component_table', array(
+                'activators_array' => $activators_array,
+                'vucc_grids' => $vucc_grids,
+                'custom_date_format' => $custom_date_format,
+                'band' => $band,
+                'leogeo' => $leogeo
+            ));
+        } else {
+            echo '<div class="alert alert-info" role="alert">No activators found for the selected filters.</div>';
+        }
+    }
+
 }
