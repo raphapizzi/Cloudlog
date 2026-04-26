@@ -171,7 +171,11 @@ function write_dxcc_timeline($timeline_array, $custom_date_format, $bandselect, 
                 <td>' . $line->prefix . '</td>
                 <td>' . $line->col_country . '</td>
                 <td>';
-        if (!empty($line->end)) echo '<span class="badge text-bg-danger">'.$ci->lang->line('gen_hamradio_deleted_dxcc').'</span>';
+        if (!empty($line->end)) {
+            echo '<span class="badge text-bg-danger">'.$ci->lang->line('gen_hamradio_deleted_dxcc').'</span>';
+        } else {
+            echo '<span class="badge text-bg-success">Active</span>';
+        }
         echo '</td>
                 <td>' . $line->end . '</td>
                 <td><button type="button" class="btn btn-sm btn-outline-primary" onclick="displayTimelineContacts(\'' . $line->adif . '\',\'' . $bandselect . '\',\'' . $modeselect . '\',\'' . $award . '\')">'.$ci->lang->line('filter_options_show').'</button></td>
