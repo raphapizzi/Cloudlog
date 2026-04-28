@@ -3496,22 +3496,24 @@ $(document).ready(function() {
 </script>
 <?php if ($this->uri->segment(1) == "timeline") { ?>
     <script>
-        $('.timelinetable').DataTable({
-            "pageLength": 25,
-            responsive: false,
-            ordering: false,
-            "scrollY": "500px",
-            "scrollCollapse": true,
-            "paging": false,
-            "scrollX": true,
-            "language": {
-                url: getDataTablesLanguageUrl(),
-            },
-            dom: 'Bfrtip',
-            buttons: [
-                'csv'
-            ]
-        });
+        if ($('.timelinetable').length) {
+            $('.timelinetable').DataTable({
+                "pageLength": 25,
+                responsive: false,
+                ordering: false,
+                "scrollY": "500px",
+                "scrollCollapse": true,
+                "paging": false,
+                "scrollX": true,
+                "language": {
+                    url: getDataTablesLanguageUrl(),
+                },
+                dom: 'Bfrtip',
+                buttons: [
+                    'csv'
+                ]
+            });
+        }
 
         // change color of csv-button if dark mode is chosen
         if (isDarkModeTheme()) {
@@ -3520,35 +3522,77 @@ $(document).ready(function() {
 
         function displayTimelineContacts(querystring, band, mode, type) {
             var baseURL = "<?php echo base_url(); ?>";
-            $.ajax({
-                url: baseURL + 'index.php/timeline/details',
-                type: 'post',
-                data: {
-                    'Querystring': querystring,
-                    'Band': band,
-                    'Mode': mode,
-                    'Type': type
-                },
-                success: function(html) {
-                    BootstrapDialog.show({
-                        title: lang_general_word_qso_data,
-                        size: BootstrapDialog.SIZE_WIDE,
-                        cssClass: 'qso-was-dialog',
-                        nl2br: false,
-                        message: html,
-                        onshown: function(dialog) {
-                            $('[data-bs-toggle="tooltip"]').tooltip();
-                            $('.table-responsive .dropdown-toggle').off('mouseenter').on('mouseenter', function() {
-                                showQsoActionsMenu($(this).closest('.dropdown'));
-                            });
-                        },
-                        buttons: [{
-                            label: lang_admin_close,
-                            action: function(dialogItself) {
-                                dialogItself.close();
-                            }
-                        }]
-                    });
+            var modalElement = document.getElementById('timelineDetailsModal');
+            var modalBody = document.getElementById('timelineDetailsBody');
+            if (!modalElement || !modalBody) {
+                return;
+            }
+
+            modalBody.innerHTML = '<div class="d-flex justify-content-center py-4"><div class="spinner-border" role="status" aria-hidden="true"></div></div>';
+
+            var modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modal.show();
+
+            if (window.htmx) {
+                htmx.ajax('POST', baseURL + 'index.php/timeline/details', {
+                    target: '#timelineDetailsBody',
+                    swap: 'innerHTML',
+                    values: {
+                        Querystring: querystring,
+                        Band: band,
+                        Mode: mode,
+                        Type: type
+                    }
+                });
+            } else {
+                $.post(baseURL + 'index.php/timeline/details', {
+                    Querystring: querystring,
+                    Band: band,
+                    Mode: mode,
+                    Type: type
+                }).done(function(html) {
+                    modalBody.innerHTML = html;
+                    initTimelineDetailsTable();
+                });
+            }
+        }
+
+        function initTimelineDetailsTable() {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+
+            var detailsTable = $('.contacttable');
+            if (detailsTable.length) {
+                if ($.fn.dataTable.isDataTable(detailsTable)) {
+                    detailsTable.DataTable().destroy();
+                }
+
+                detailsTable.DataTable({
+                    "pageLength": 10,
+                    responsive: false,
+                    ordering: false,
+                    "scrollY": "55vh",
+                    "scrollCollapse": true,
+                    "paging": true,
+                    "scrollX": true,
+                    "language": {
+                        url: getDataTablesLanguageUrl(),
+                    },
+                    dom: 'Bfrtip',
+                    buttons: [
+                        'csv'
+                    ]
+                });
+            }
+
+            $('.table-responsive .dropdown-toggle').off('mouseenter').on('mouseenter', function() {
+                showQsoActionsMenu($(this).closest('.dropdown'));
+            });
+        }
+
+        if (window.htmx) {
+            document.body.addEventListener('htmx:afterSwap', function(evt) {
+                if (evt.target && evt.target.id === 'timelineDetailsBody') {
+                    initTimelineDetailsTable();
                 }
             });
         }

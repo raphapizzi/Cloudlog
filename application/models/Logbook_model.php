@@ -242,7 +242,8 @@ class Logbook_model extends CI_Model
     }
 
     //$darc_dok = $this->input->post('darc_dok');
-    $qso_locator = strtoupper(trim(xss_clean($this->input->post('locator')) ?? ''));
+    // Handle both single gridsquare (locator) and multiple gridsquares (vucc_grids) from SimpleFLE
+    $qso_locator = strtoupper(trim(xss_clean($this->input->post('vucc_grids') ?? '') ?: xss_clean($this->input->post('locator') ?? '')));
     $qso_name = $this->input->post('name');
     $qso_age = null;
     $qso_usa_state = $this->input->post('usa_state') == null ? '' : $this->input->post('usa_state');

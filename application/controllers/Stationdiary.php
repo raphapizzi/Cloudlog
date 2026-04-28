@@ -397,4 +397,80 @@ class Stationdiary extends CI_Controller {
 		// Merge and return
 		echo json_encode(array_merge($plotArray, $stationArray));
 	}
+
+	public function search($callsign = NULL)
+	{
+		if ($this->security->xss_clean($callsign, TRUE) === FALSE) {
+			show_404();
+			return;
+		}
+
+		$resolution = $this->note->resolve_public_user_by_callsign($callsign);
+		if (!isset($resolution['status']) || $resolution['status'] !== 'ok') {
+			show_404();
+			return;
+		}
+
+		$query = trim((string)$this->input->get('q', TRUE));
+		$cleanCallsign = strtoupper($resolution['callsign']);
+
+		if ($query === '') {
+			redirect('station-diary/' . rawurlencode($cleanCallsign));
+			return;
+		}
+
+		$user_id = (int)$resolution['user_id'];
+		$perPage = 10;
+		$totalRows = $this->note->count_public_station_diary_search_results($user_id, $query);
+
+		$config['base_url'] = site_url('station-diary/' . rawurlencode($cleanCallsign) . '/search');
+		$config['total_rows'] = $totalRows;
+		$config['per_page'] = $perPage;
+		$config['num_links'] = 5;
+		$config['page_query_string'] = TRUE;
+		$config['reuse_query_string'] = TRUE;
+		$config['query_string_segment'] = 'page';
+		$config['use_page_numbers'] = FALSE;
+		$config['full_tag_open'] = '<ul class="pagination pagination-sm">';
+		$config['full_tag_close'] = '</ul>';
+		$config['attributes'] = array('class' => 'page-link');
+		$config['first_link'] = FALSE;
+		$config['last_link'] = FALSE;
+		$config['first_tag_open'] = '<li class="page-item">';
+		$config['first_tag_close'] = '</li>';
+		$config['prev_link'] = '&laquo';
+		$config['prev_tag_open'] = '<li class="page-item">';
+		$config['prev_tag_close'] = '</li>';
+		$config['next_link'] = '&raquo';
+		$config['next_tag_open'] = '<li class="page-item">';
+		$config['next_tag_close'] = '</li>';
+		$config['last_tag_open'] = '<li class="page-item">';
+		$config['last_tag_close'] = '</li>';
+		$config['cur_tag_open'] = '<li class="page-item active"><a href="#" class="page-link">';
+		$config['cur_tag_close'] = '<span class="visually-hidden">(current)</span></a></li>';
+		$config['num_tag_open'] = '<li class="page-item">';
+		$config['num_tag_close'] = '</li>';
+
+		$this->pagination->initialize($config);
+
+		$pageOffset = (int)$this->input->get('page', TRUE);
+		if ($pageOffset < 0) {
+			$pageOffset = 0;
+		}
+
+		$data['callsign'] = $cleanCallsign;
+		$data['entries'] = $this->note->search_public_station_diary_entries($user_id, $query, $perPage, $pageOffset);
+		$data['pagination_links'] = $this->pagination->create_links();
+		$data['page_title'] = 'Search: ' . $query . ' - Station Diary - ' . $cleanCallsign;
+		$data['rss_url'] = site_url('station-diary/' . rawurlencode($cleanCallsign) . '/rss');
+		$data['qso_datetime_format'] = $this->get_public_qso_datetime_format($resolution['user_date_format'] ?? NULL);
+		$data['is_single_entry'] = false;
+		$data['defer_qso_list'] = false;
+		$data['current_entry_permalink'] = '';
+		$data['is_search_results'] = true;
+		$data['search_query'] = $query;
+		$data['search_total'] = $totalRows;
+
+		$this->load->view('station_diary/public_index', $data);
+	}
 }

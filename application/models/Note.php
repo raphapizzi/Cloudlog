@@ -401,6 +401,48 @@ class Note extends CI_Model {
 		return (int)$this->db->count_all_results();
 	}
 
+	public function count_public_station_diary_search_results($user_id, $query) {
+		$this->db->from('notes');
+		$this->db->where('user_id', (int)$user_id);
+		$this->db->where('cat', 'Station Diary');
+		$this->db->where('is_public', 1);
+		$this->db->group_start();
+		$this->db->like('title', $query);
+		$this->db->or_like('note', $query);
+		$this->db->group_end();
+		return (int)$this->db->count_all_results();
+	}
+
+	public function search_public_station_diary_entries($user_id, $query, $limit = 10, $offset = 0) {
+		$this->db->from('notes');
+		$this->db->where('user_id', (int)$user_id);
+		$this->db->where('cat', 'Station Diary');
+		$this->db->where('is_public', 1);
+		$this->db->group_start();
+		$this->db->like('title', $query);
+		$this->db->or_like('note', $query);
+		$this->db->group_end();
+		$this->db->order_by('created_at', 'DESC');
+		$this->db->order_by('id', 'DESC');
+		$this->db->limit((int)$limit, (int)$offset);
+
+		$entries = $this->db->get()->result();
+
+		$ids = array();
+		foreach ($entries as $entry) {
+			$ids[] = (int)$entry->id;
+		}
+
+		$imagesMap = $this->get_diary_images($ids);
+		foreach ($entries as $entry) {
+			$entry->images = isset($imagesMap[$entry->id]) ? $imagesMap[$entry->id] : array();
+			$entry->qso_summary = null;
+			$entry->qso_list = array();
+		}
+
+		return $entries;
+	}
+
 	public function get_public_station_diary_entries($user_id, $limit = 10, $offset = 0, $include_qso_list = TRUE) {
 		$this->db->from('notes');
 		$this->db->where('user_id', (int)$user_id);

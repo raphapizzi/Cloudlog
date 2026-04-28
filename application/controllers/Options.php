@@ -337,14 +337,14 @@ class Options extends CI_Controller {
 				// Update smtpPassword choice within the options system
 				$smtpPasswordupdate = $this->optionslib->update('smtpPassword', $this->input->post('smtpPassword'), 'yes');
 	
-				// Check if all updates are successful
-				$updateSuccessful = $emailProtocolupdate &&
-									$smtpEncryptionupdate &&
-									$emailSenderNameupdate &&
-									$emailAddressupdate &&
-									$smtpHostupdate &&
-									$smtpPortupdate &&
-									$smtpUsernameupdate &&
+				// Consider save successful when at least one value is persisted.
+				$updateSuccessful = $emailProtocolupdate ||
+									$smtpEncryptionupdate ||
+									$emailSenderNameupdate ||
+									$emailAddressupdate ||
+									$smtpHostupdate ||
+									$smtpPortupdate ||
+									$smtpUsernameupdate ||
 									$smtpPasswordupdate;
 
 				// Set flash session based on update success

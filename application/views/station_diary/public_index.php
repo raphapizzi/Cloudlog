@@ -248,16 +248,28 @@
 <body>
 	<div class="diary-shell">
 		<div class="diary-inner">
-			<div class="diary-top-nav no-print pt-2">
-				<a href="<?php echo site_url('station-diary/' . rawurlencode($callsign)); ?>">Home</a>
-				<a href="<?php echo htmlspecialchars($rss_url, ENT_QUOTES); ?>">RSS</a>
-				<a href="#" onclick="window.print(); return false;">Print</a>
+				<div class="diary-top-nav no-print pt-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+				<div>
+					<a href="<?php echo site_url('station-diary/' . rawurlencode($callsign)); ?>">Home</a>
+					<a href="<?php echo htmlspecialchars($rss_url, ENT_QUOTES); ?>">RSS</a>
+					<?php if (empty($is_single_entry)) { ?>
+					<a href="#" onclick="window.print(); return false;">Print</a>
+					<?php } ?>
+				</div>
+				<form method="get" action="<?php echo site_url('station-diary/' . rawurlencode($callsign) . '/search'); ?>" class="d-flex gap-1" role="search">
+					<input type="search" name="q" placeholder="Search diary..." value="<?php echo htmlspecialchars($search_query ?? '', ENT_QUOTES); ?>" class="form-control form-control-sm" style="width:180px; font-family:inherit; font-size:0.85rem;" maxlength="100">
+					<button type="submit" class="btn btn-sm btn-outline-secondary" style="font-size:0.85rem;"><i class="fas fa-search"></i></button>
+				</form>
 			</div>
 
 			<hr class="diary-rule">
 
 			<h1 class="diary-title"><?php echo htmlspecialchars($callsign, ENT_QUOTES); ?>'s Station Diary</h1>
+			<?php if (!empty($is_search_results)) { ?>
+			<div class="diary-subtitle">Search results for: <em><?php echo htmlspecialchars($search_query ?? '', ENT_QUOTES); ?></em> &mdash; <?php echo (int)($search_total ?? 0); ?> <?php echo (int)($search_total ?? 0) === 1 ? 'entry' : 'entries'; ?> found</div>
+			<?php } else { ?>
 			<div class="diary-subtitle">Notes from my ham radio adventures</div>
+			<?php } ?>
 
 			<hr class="diary-rule mb-4">
 
@@ -471,7 +483,12 @@
 				<?php } ?>
 			<?php } else { ?>
 				<div class="text-center py-5">
-					<p class="mb-0">No public station diary entries found.</p>
+					<?php if (!empty($is_search_results)) { ?>
+						<p class="mb-2">No entries matched your search for <em><?php echo htmlspecialchars($search_query ?? '', ENT_QUOTES); ?></em>.</p>
+						<a href="<?php echo site_url('station-diary/' . rawurlencode($callsign)); ?>" class="btn btn-sm btn-outline-secondary">View all entries</a>
+					<?php } else { ?>
+						<p class="mb-0">No public station diary entries found.</p>
+					<?php } ?>
 				</div>
 			<?php } ?>
 

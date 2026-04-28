@@ -48,7 +48,7 @@ class Timeline_model extends CI_Model
         $sql .= $this->addQslToQuery($qsl, $lotw, $eqsl);
 
         $sql .= " group by col_dxcc, col_country
-                order by date desc";
+                order by min(COL_TIME_ON) desc";
 
         $query = $this->db->query($sql);
 
@@ -80,7 +80,7 @@ class Timeline_model extends CI_Model
         $sql .= $this->addQslToQuery($qsl, $lotw, $eqsl);
 
         $sql .= " group by col_state
-                order by date desc";
+                order by min(COL_TIME_ON) desc";
 
         $query = $this->db->query($sql);
 
@@ -110,7 +110,7 @@ class Timeline_model extends CI_Model
         $sql .= $this->addQslToQuery($qsl, $lotw, $eqsl);
 
         $sql .= " and col_iota <> '' group by col_iota, name, prefix
-                order by date desc";
+                order by min(COL_TIME_ON) desc";
 
         $query = $this->db->query($sql);
 
@@ -139,7 +139,7 @@ class Timeline_model extends CI_Model
         $sql .= $this->addQslToQuery($qsl, $lotw, $eqsl);
 
         $sql .= " and col_cqz <> '' group by col_cqz
-                order by date desc";
+                order by min(COL_TIME_ON) desc";
 
         $query = $this->db->query($sql);
 
@@ -280,7 +280,7 @@ class Timeline_model extends CI_Model
 
     public function get_gridsquare($band, $mode, $location_list, $qsl, $lotw, $eqsl) {
         // $sql = "select min(date(COL_TIME_ON)) date, col_gridsquare from "
-        $sql = "select min(date(COL_TIME_ON)) date, upper(substring(col_gridsquare, 1, 4)) gridsquare from "
+        $sql = "select min(COL_TIME_ON) date, upper(substring(col_gridsquare, 1, 4)) gridsquare from "
             .$this->config->item('table_name'). " thcv
             where station_id in (" . $location_list . ")";
 
@@ -301,7 +301,7 @@ class Timeline_model extends CI_Model
         $sql .= $this->addQslToQuery($qsl, $lotw, $eqsl);
 
         $sql .= " and col_gridsquare <> '' group by upper(substring(col_gridsquare, 1, 4))
-                order by date desc";
+                order by min(COL_TIME_ON) desc";
 
         $query = $this->db->query($sql);
 
@@ -310,7 +310,7 @@ class Timeline_model extends CI_Model
 
     public function get_vucc_grids($band, $mode, $location_list, $qsl, $lotw, $eqsl) {
         // $sql = "select min(date(COL_TIME_ON)) date, col_gridsquare from "
-        $sql = "select date(COL_TIME_ON) date, upper(col_vucc_grids) gridsquare from "
+        $sql = "select COL_TIME_ON date, upper(col_vucc_grids) gridsquare from "
             .$this->config->item('table_name'). " thcv
             where station_id in (" . $location_list . ")";
 
