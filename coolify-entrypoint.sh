@@ -15,17 +15,20 @@ set -e
 
 ENV_PATH="/var/www/html/.env"
 
-cat > "$ENV_PATH" <<ENVFILE
-MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-MYSQL_DATABASE=${MYSQL_DATABASE}
-MYSQL_USER=${MYSQL_USER}
-MYSQL_PASSWORD=${MYSQL_PASSWORD}
-MYSQL_HOST=${MYSQL_HOST:-db}
-MYSQL_PORT=${MYSQL_PORT:-3306}
-BASE_LOCATOR=${BASE_LOCATOR}
-WEBSITE_URL=${WEBSITE_URL}
-DIRECTORY=${DIRECTORY:-/var/www/html}
-ENVFILE
+# printf '%q' produces a shell-safe single-token form for any value, so the
+# downstream `source .env` in script.sh can handle passwords with spaces,
+# quotes, $, |, etc. without choking.
+{
+    printf 'MYSQL_ROOT_PASSWORD=%q\n' "${MYSQL_ROOT_PASSWORD}"
+    printf 'MYSQL_DATABASE=%q\n'      "${MYSQL_DATABASE}"
+    printf 'MYSQL_USER=%q\n'          "${MYSQL_USER}"
+    printf 'MYSQL_PASSWORD=%q\n'      "${MYSQL_PASSWORD}"
+    printf 'MYSQL_HOST=%q\n'          "${MYSQL_HOST:-db}"
+    printf 'MYSQL_PORT=%q\n'          "${MYSQL_PORT:-3306}"
+    printf 'BASE_LOCATOR=%q\n'        "${BASE_LOCATOR}"
+    printf 'WEBSITE_URL=%q\n'         "${WEBSITE_URL}"
+    printf 'DIRECTORY=%q\n'           "${DIRECTORY:-/var/www/html}"
+} > "$ENV_PATH"
 
 chmod 600 "$ENV_PATH"
 
