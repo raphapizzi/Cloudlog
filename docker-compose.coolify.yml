@@ -1,0 +1,65 @@
+# Production Docker Compose for Coolify
+# - No bind mount of source code (image carries it)
+# - Named volumes for everything Cloudlog writes at runtime
+# - Env vars come from Coolify's UI (do not commit secrets)
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      BASE_LOCATOR: ${BASE_LOCATOR}
+      WEBSITE_URL: ${WEBSITE_URL}
+      DIRECTORY: /var/www/html
+    expose:
+      - "80"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - cloudlog_config:/var/www/html/application/config
+      - cloudlog_logs:/var/www/html/application/logs
+      - cloudlog_uploads:/var/www/html/uploads
+      - cloudlog_backup:/var/www/html/backup
+      - cloudlog_updates:/var/www/html/updates
+      - cloudlog_qslcard:/var/www/html/assets/qslcard
+      - cloudlog_eqsl:/var/www/html/images/eqsl_card_images
+      - cloudlog_json:/var/www/html/assets/json
+
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - cloudlog_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+
+volumes:
+  cloudlog_config:
+  cloudlog_logs:
+  cloudlog_uploads:
+  cloudlog_backup:
+  cloudlog_updates:
+  cloudlog_qslcard:
+  cloudlog_eqsl:
+  cloudlog_json:
+  cloudlog_db:

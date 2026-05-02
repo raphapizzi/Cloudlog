@@ -1,0 +1,43 @@
+# Keeps this fork in sync with magicbug/Cloudlog upstream.
+# Runs every Monday at 06:17 UTC (off the :00 mark) and on demand.
+# When a sync produces new commits on master, Coolify's GitHub webhook will
+# pick them up and redeploy automatically.
+
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/magicbug/Cloudlog.git
+
+      - name: Fetch upstream
+        run: git fetch upstream master
+
+      - name: Merge upstream/master into master
+        run: |
+          git checkout master
+          git merge upstream/master --no-edit
+
+      - name: Push to fork
+        run: git push origin master

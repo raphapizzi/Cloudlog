@@ -1,0 +1,44 @@
+# Production-ready Dockerfile for Coolify deployment
+# Builds on top of the official PHP 7.4 + Apache image and embeds the Cloudlog
+# source into the image (no bind mount required).
+
+FROM php:7.4-apache
+
+WORKDIR /var/www/html
+
+# System deps + PHP extensions Cloudlog needs
+RUN apt-get update && apt-get install -y \
+        libcurl4-openssl-dev \
+        libxml2-dev \
+        libzip-dev \
+        zlib1g-dev \
+        libpng-dev \
+        libonig-dev \
+        default-mysql-client \
+        mariadb-client \
+        curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && docker-php-ext-install pdo_mysql mysqli gd mbstring zip xml \
+    && a2enmod rewrite
+
+# Embed the entire Cloudlog source into the image
+COPY . /var/www/html/
+
+# Promote the startup script to PATH and make sure line endings are clean
+RUN cp /var/www/html/script.sh /usr/local/bin/startup.sh \
+    && sed -i 's/\r$//' /usr/local/bin/startup.sh \
+    && chmod +x /usr/local/bin/startup.sh
+
+# PHP runtime tuning (uploads / memory / timeouts)
+RUN { \
+        echo "upload_max_filesize = 30M"; \
+        echo "post_max_size = 35M"; \
+        echo "memory_limit = 128M"; \
+        echo "max_execution_time = 300"; \
+        echo "max_input_time = 300"; \
+    } > /usr/local/etc/php/conf.d/uploads.ini
+
+EXPOSE 80
+
+CMD ["/usr/local/bin/startup.sh"]
