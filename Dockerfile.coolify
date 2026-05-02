@@ -35,6 +35,13 @@ RUN cp /var/www/html/script.sh /usr/local/bin/startup.sh \
     && sed -i 's/\r$//' /usr/local/bin/startup.sh \
     && chmod +x /usr/local/bin/startup.sh
 
+# Coolify wrapper: materialises a real .env from container env vars BEFORE
+# script.sh runs. Without it, script.sh `source`s .env.sample and overwrites
+# the real DB password with the placeholder default.
+RUN cp /var/www/html/coolify-entrypoint.sh /usr/local/bin/coolify-entrypoint.sh \
+    && sed -i 's/\r$//' /usr/local/bin/coolify-entrypoint.sh \
+    && chmod +x /usr/local/bin/coolify-entrypoint.sh
+
 # PHP runtime tuning (uploads / memory / timeouts)
 RUN { \
         echo "upload_max_filesize = 30M"; \
@@ -46,4 +53,4 @@ RUN { \
 
 EXPOSE 80
 
-CMD ["/usr/local/bin/startup.sh"]
+CMD ["/usr/local/bin/coolify-entrypoint.sh"]
