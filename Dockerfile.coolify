@@ -25,6 +25,11 @@ RUN apt-get update && apt-get install -y \
 # Embed the entire Cloudlog source into the image
 COPY . /var/www/html/
 
+# Apache/PHP run as www-data — give it ownership so the installer can self-clean
+# (the upstream script.sh tries `rm -rf /install` with a broken absolute path,
+# leaving install/ behind for PHP to delete via unlink())
+RUN chown -R www-data:www-data /var/www/html
+
 # Promote the startup script to PATH and make sure line endings are clean
 RUN cp /var/www/html/script.sh /usr/local/bin/startup.sh \
     && sed -i 's/\r$//' /usr/local/bin/startup.sh \
